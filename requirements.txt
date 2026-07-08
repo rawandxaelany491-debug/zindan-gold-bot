@@ -1,1 +1,5 @@
-
+python-telegram-bot==21.7
+openai>=1.50.0
+httpx
+python-dotenv
+Pillow
