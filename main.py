@@ -1,7 +1,5 @@
 """
 main.py
-
-Telegram Bot for XAUUSD (Gold) chart analysis.
 """
 
 import os
@@ -19,101 +17,68 @@ from telegram.ext import (
 from config import Config
 from analysis import analyze_chart
 
-
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=Config.LOG_LEVEL,
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 logger = logging.getLogger(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Start command.
-    """
 
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "👋 بەخێربێیت.\n\n"
-        "تکایە تەنها وێنەی TradingView ـی XAUUSD (Gold) بنێرە بۆ شیکردنەوە."
+        "تکایە وێنەی TradingView ـی XAUUSD بنێرە."
     )
 
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Help command.
-    """
-
-    await update.message.reply_text(
-        "📌 ئەم بۆتە تەنها چارتی XAUUSD شیدەکاتەوە.\n"
-        "وێنەی TradingView بنێرە، من بە ستراتیژی زیندان شیکاری دەکەم."
-    )
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Handle incoming chart image.
-    """
-
-    photo = update.message.photo[-1]
-
-    await update.message.reply_text(
-        "⏳ چاوەڕێبە...\n"
-        "شیکردنەوەی چارت دەکرێت."
-    )
-
-    file = await context.bot.get_file(photo.file_id)
-
-    image_path = "chart.png"
-
-    await file.download_to_drive(image_path)
-
     try:
-        with open(image_path, "rb") as f:
-    image_bytes = f.read()
+        photo = update.message.photo[-1]
 
-result = analyze_chart(image_bytes)
+        telegram_file = await context.bot.get_file(photo.file_id)
+
+        image_path = "chart.png"
+
+        await telegram_file.download_to_drive(image_path)
+
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        os.remove(image_path)
+
+        await update.message.reply_text(
+            "⏳ چاوەڕێبە... شیکردنەوە دەکرێت."
+        )
+
+        result = analyze_chart(image_bytes)
 
         await update.message.reply_text(result)
 
     except Exception as e:
         logger.exception(e)
-
         await update.message.reply_text(
-            "❌ هەڵەیەک ڕوویدا لە شیکردنەوەی چارت."
+            f"❌ Error:\n{e}"
         )
 
-    finally:
-        if os.path.exists(image_path):
-            os.remove(image_path)
 
 def main():
-    """
-    Start the Telegram bot.
-    """
-
     Config.validate()
 
-    application = Application.builder().token(
-        Config.TELEGRAM_BOT_TOKEN
-    ).build()
-
-    application.add_handler(
-        CommandHandler("start", start)
+    app = (
+        Application.builder()
+        .token(Config.TELEGRAM_BOT_TOKEN)
+        .build()
     )
 
-    application.add_handler(
-        CommandHandler("help", help_command)
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        MessageHandler(filters.PHOTO, handle_photo)
     )
 
-    application.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo,
-        )
-    )
+    logger.info("Bot Started...")
 
-    logger.info("Bot started...")
-
-    application.run_polling()
+    app.run_polling()
 
 
 if __name__ == "__main__":
