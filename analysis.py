@@ -1,7 +1,7 @@
 import google.generativeai as genai
 from config import Config
 # Configure Gemini
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=Config.GEMINI_API_KEY)
 # Gemini model
 model = genai.GenerativeModel("gemini-2.5-flash")
 SYSTEM_PROMPT = """
