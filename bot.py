@@ -13,8 +13,8 @@ from analysis import analyze_chart
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Welcome to Gold AI Bot!\n\n"
-        "📈 Send me a Gold/XAUUSD chart and I'll analyze it using Gemini AI."
+        "👋 بەخێربێیت.\n\n"
+        "تکایە تەنها وێنەی TradingView بۆ XAUUSD (Gold) بنێرە."
     )
 
 
@@ -22,11 +22,11 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         photo = update.message.photo[-1]
 
-        file = await context.bot.get_file(photo.file_id)
+        telegram_file = await context.bot.get_file(photo.file_id)
 
-        image_bytes = await file.download_as_bytearray()
+        image_bytes = await telegram_file.download_as_bytearray()
 
-        await update.message.reply_text("🔍 Analyzing chart...")
+        await update.message.reply_text("⏳ چاوەڕێبە... شیکردنەوەی چارت دەکرێت.")
 
         result = analyze_chart(bytes(image_bytes))
 
@@ -34,12 +34,14 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     except Exception as e:
         await update.message.reply_text(
-            f"❌ Error:\n{e}"
+            f"❌ Error:\n{str(e)}"
         )
 
 
 def main():
-    Application.builder().token(Config.TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(
+        Config.TELEGRAM_BOT_TOKEN
+    ).build()
 
     app.add_handler(CommandHandler("start", start))
 
@@ -50,7 +52,7 @@ def main():
         )
     )
 
-    print("Bot started...")
+    print("✅ Bot Started")
 
     app.run_polling()
 
