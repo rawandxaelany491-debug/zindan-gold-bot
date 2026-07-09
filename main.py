@@ -113,3 +113,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     return response.output_text
+    await update.message.reply_text(
+    "✅ وێنەکە ئامادەی شیکارییە..."
+)await update.message.reply_text(
+    "🧠 AI خەریکی شیکاری چارتەکەیە..."
+)
+
+analysis = await analyze_chart(encoded_image)
+
+await update.message.reply_text(
+    "📊 شیکاری AI:\n\n"
+    f"{analysis}"
+)
