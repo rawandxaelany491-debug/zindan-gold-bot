@@ -39,12 +39,13 @@ def analyze_chart(image_bytes):
     Analyze a chart image using Gemini.
     """
     try:
-        response = model.generate_content(
-            [
-                SYSTEM_PROMPT,
-                {
-                    "mime_type": "image/jpeg",
-                    "data": image_bytes,
+        image = Image.open(io.BytesIO(image_bytes))
+
+response = model.generate_content(
+    [
+        SYSTEM_PROMPT,
+        image,
+    ]
                 },
             ]
         )
