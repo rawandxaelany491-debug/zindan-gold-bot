@@ -1,4 +1,6 @@
 import google.generativeai as genai
+from PIL import Image
+import io
 from config import Config
 # Configure Gemini
 genai.configure(api_key=Config.GEMINI_API_KEY)
