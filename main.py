@@ -3,6 +3,10 @@ import base64
 import logging
 from io import BytesIO
 
+from dotenv import load_dotenv
+from openai import OpenAI
+from PIL import Image
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -12,15 +16,11 @@ from telegram.ext import (
     filters,
 )
 
-from openai import OpenAI
-from PIL import Image
-from dotenv import load_dotenv
-
 load_dotenv()
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
 )
 
 logger = logging.getLogger(__name__)
@@ -29,52 +29,83 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN not found")
+    raise ValueError("BOT_TOKEN is missing.")
 
 if not OPENAI_API_KEY:
-    raise ValueError("OPENAI_API_KEY not found")
+    raise ValueError("OPENAI_API_KEY is missing.")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 بەخێربێیت بۆ Gold Analyzer Bot\n\n"
-        "📷 تکایە وێنەی چارتی XAUUSD (Gold) بنێرە.\n"
-        "🤖 بۆتەکە بە ستراتیژی زیندان شیکاری دەکات.\n"
-        "📊 وەڵام: BUY / SELL / NO TRADE"
+
+    text = (
+        "👋 Welcome to Gold Analyzer Bot\n\n"
+        "📷 Send only XAUUSD (Gold) chart.\n"
+        "🤖 The bot will analyze the chart using Zendan Strategy."
     )
 
+    await update.message.reply_text(text)
+    async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        await update.message.reply_text("📥 وێنەکەت وەرگیرا...")
+
+        await update.message.reply_text(
+            "📥 Receiving image..."
+        )
 
         photo = update.message.photo[-1]
 
-        file = await context.bot.get_file(photo.file_id)
+        telegram_file = await context.bot.get_file(
+            photo.file_id
+        )
 
-        image_bytes = await file.download_as_bytearray()
+        image_bytes = await telegram_file.download_as_bytearray()
 
         image = Image.open(BytesIO(image_bytes))
 
-        buffered = BytesIO()
+        buffer = BytesIO()
 
-        image.save(buffered, format="PNG")
+        image.save(buffer, format="PNG")
 
         encoded_image = base64.b64encode(
-            buffered.getvalue()
-        ).decode("utf-8")
+            buffer.getvalue()
+        ).decode()
 
         await update.message.reply_text(
-            "✅ وێنەکە ئامادەی شیکارییە..."
+            "🧠 AI is analyzing your Gold chart..."
         )
 
     except Exception as e:
+
         logger.exception(e)
 
         await update.message.reply_text(
-            f"❌ هەڵە ڕوویدا:\n{e}"
+            f"❌ Error:\n{e}"
         )
-        async def analyze_chart(encoded_image: str):
+        SYSTEM_PROMPT = """
+You are a professional Gold (XAUUSD) chart analyzer.
+
+Analyze ONLY what is visible in the chart.
+
+Return:
+
+Trend:
+Support:
+Resistance:
+Breakout:
+Pullback:
+Market Structure:
+Candlestick Pattern:
+Sideway:
+
+Do NOT give BUY or SELL.
+
+Do NOT guess.
+
+Only describe what you clearly see.
+"""
+
+
+async def analyze_image(encoded_image: str):
 
     response = client.responses.create(
 
@@ -84,27 +115,23 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             {
                 "role": "system",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": (
-                            "You are an expert XAUUSD chart analyst. "
-                            "Describe ONLY what you see in the chart. "
-                            "Do not give BUY or SELL signals. "
-                            "Extract trend, support, resistance, "
-                            "breakout, pullback, candles and market structure."
-                        )
-                    }
-                ]
+                "content": SYSTEM_PROMPT,
             },
 
             {
                 "role": "user",
                 "content": [
+
+                    {
+                        "type": "input_text",
+                        "text": "Analyze this XAUUSD chart."
+                    },
+
                     {
                         "type": "input_image",
                         "image_url": f"data:image/png;base64,{encoded_image}"
                     }
+
                 ]
             }
 
@@ -113,40 +140,81 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     return response.output_text
+    async def process_analysis(update, analysis):
+
     await update.message.reply_text(
-    "✅ وێنەکە ئامادەی شیکارییە..."
-)await update.message.reply_text(
-    "🧠 AI خەریکی شیکاری چارتەکەیە..."
-)
+        "📊 XAUUSD Analysis:\n\n"
+        f"{analysis}"
+    )
 
-analysis = await analyze_chart(encoded_image)
 
-await update.message.reply_text(
-    "📊 شیکاری AI:\n\n"
-    f"{analysis}"
-)
+async def run_photo_analysis(update, context):
+
+    try:
+        photo = update.message.photo[-1]
+
+        file = await context.bot.get_file(
+            photo.file_id
+        )
+
+        image_bytes = await file.download_as_bytearray()
+
+        image = Image.open(BytesIO(image_bytes))
+
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+
+        encoded_image = base64.b64encode(
+            buffer.getvalue()
+        ).decode()
+
+        await update.message.reply_text(
+            "🧠 Chart is being analyzed..."
+        )
+
+        result = await analyze_image(encoded_image)
+
+        await process_analysis(
+            update,
+            result
+        )
+
+    except Exception as e:
+
+        logger.exception(e)
+
+        await update.message.reply_text(
+            "❌ Error happened while analyzing chart."
+        )
+
+
 def main():
 
-    application = (
+    app = (
         Application.builder()
         .token(BOT_TOKEN)
         .build()
     )
 
-    application.add_handler(
-        CommandHandler("start", start)
-    )
-
-    application.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo,
+    app.add_handler(
+        CommandHandler(
+            "start",
+            start
         )
     )
 
-    logger.info("Gold Bot Started...")
+    app.add_handler(
+        MessageHandler(
+            filters.PHOTO,
+            run_photo_analysis
+        )
+    )
 
-    application.run_polling()
+    logger.info(
+        "Gold Analyzer Bot Started"
+    )
+
+    app.run_polling()
 
 
 if __name__ == "__main__":
