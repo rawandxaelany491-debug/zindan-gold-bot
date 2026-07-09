@@ -67,7 +67,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await file.download_to_drive(image_path)
 
     try:
-        result = analyze_chart(image_path)
+        with open(image_path, "rb") as f:
+    image_bytes = f.read()
+
+result = analyze_chart(image_bytes)
 
         await update.message.reply_text(result)
 
