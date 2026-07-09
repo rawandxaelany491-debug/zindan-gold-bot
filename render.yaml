@@ -1,8 +1,24 @@
 services:
-  - type: web
-    name: zindan-gold-bot
-    env: python
+  - type: worker
+    name: gold-telegram-bot
+    runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python main.py
+
+    buildCommand: "pip install -r requirements.txt"
+
+    startCommand: "python main.py"
+
     autoDeploy: true
+
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+
+      - key: MT5_LOGIN
+        sync: false
+
+      - key: MT5_PASSWORD
+        sync: false
+
+      - key: MT5_SERVER
+        sync: false
