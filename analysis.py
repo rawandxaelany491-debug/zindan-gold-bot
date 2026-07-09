@@ -1,37 +1,53 @@
-"""
-analysis.py
-
-Gemini Vision analysis module.
-"""
-
 import google.generativeai as genai
-
-from config import Config
-from prompts import SYSTEM_PROMPT
-
-
-genai.configure(api_key=Config.GEMINI_API_KEY)
-
+from config import GEMINI_API_KEY
+# Configure Gemini
+genai.configure(api_key=GEMINI_API_KEY)
+# Gemini model
 model = genai.GenerativeModel("gemini-2.5-flash")
-
-
-def analyze_chart(image_path: str) -> str:
+SYSTEM_PROMPT = """
+You are Gold AI, a professional trading analyst.
+Analyze the uploaded trading chart carefully.
+Return your answer in exactly this format:
+📈 Trend:
+(Bullish / Bearish / Sideways)
+🎯 Entry:
+(price or zone)
+🛑 Stop Loss:
+(price)
+🎯 Take Profit:
+TP1:
+TP2:
+TP3:
+📊 Confidence:
+(%)
+⚠️ Risk:
+(Low / Medium / High)
+📝 Analysis:
+Explain briefly:
+- Market structure
+- Support & Resistance
+- Liquidity
+- Order Block (if any)
+- Fair Value Gap (if any)
+- Reason for the trade
+Keep the answer clear and concise.
+"""
+def analyze_chart(image_bytes):
     """
-    Analyze XAUUSD TradingView chart using Gemini Vision.
+    Analyze a chart image using Gemini.
     """
-
-    with open(image_path, "rb") as img:
-        image_data = img.read()
-
-    response = model.generate_content(
-        [
-            SYSTEM_PROMPT,
-            "ئەم وێنەیەی TradingView ی XAUUSD شیکاربکە.",
-            {
-                "mime_type": "image/png",
-                "data": image_data,
-            },
-        ]
-    )
-
-    return response.text
+    try:
+        response = model.generate_content(
+            [
+                SYSTEM_PROMPT,
+                {
+                    "mime_type": "image/jpeg",
+                    "data": image_bytes,
+                },
+            ]
+        )
+        if hasattr(response, "text") and response.text:
+            return response.text
+        return "❌ Gemini returned an empty response."
+    except Exception as e:
+        return f"❌ Analysis failed:\n{str(e)}"
