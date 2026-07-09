@@ -1,24 +1,30 @@
 services:
   - type: worker
     name: gold-telegram-bot
-    runtime: python
-    plan: free
+    env: python
 
     buildCommand: "pip install -r requirements.txt"
-
     startCommand: "python main.py"
+
+    plan: free
 
     autoDeploy: true
 
     envVars:
-      - key: BOT_TOKEN
+      - key: TELEGRAM_BOT_TOKEN
         sync: false
 
-      - key: MT5_LOGIN
+      - key: OPENAI_API_KEY
         sync: false
 
-      - key: MT5_PASSWORD
-        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1
 
-      - key: MT5_SERVER
-        sync: false
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: DEFAULT_RISK_PERCENT
+        value: "1.0"
+
+      - key: REQUEST_TIMEOUT
+        value: "60"
