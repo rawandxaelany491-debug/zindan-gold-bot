@@ -7,7 +7,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import BOT_TOKEN
+from config import Config
 from analysis import analyze_chart
 
 
