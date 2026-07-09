@@ -35,3 +35,42 @@ if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY not found")
 
 client = OpenAI(api_key=OPENAI_API_KEY)
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 بەخێربێیت بۆ Gold Analyzer Bot\n\n"
+        "📷 تکایە وێنەی چارتی XAUUSD (Gold) بنێرە.\n"
+        "🤖 بۆتەکە بە ستراتیژی زیندان شیکاری دەکات.\n"
+        "📊 وەڵام: BUY / SELL / NO TRADE"
+    )
+
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        await update.message.reply_text("📥 وێنەکەت وەرگیرا...")
+
+        photo = update.message.photo[-1]
+
+        file = await context.bot.get_file(photo.file_id)
+
+        image_bytes = await file.download_as_bytearray()
+
+        image = Image.open(BytesIO(image_bytes))
+
+        buffered = BytesIO()
+
+        image.save(buffered, format="PNG")
+
+        encoded_image = base64.b64encode(
+            buffered.getvalue()
+        ).decode("utf-8")
+
+        await update.message.reply_text(
+            "✅ وێنەکە ئامادەی شیکارییە..."
+        )
+
+    except Exception as e:
+        logger.exception(e)
+
+        await update.message.reply_text(
+            f"❌ هەڵە ڕوویدا:\n{e}"
+        )
