@@ -74,3 +74,42 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"❌ هەڵە ڕوویدا:\n{e}"
         )
+        async def analyze_chart(encoded_image: str):
+
+    response = client.responses.create(
+
+        model="gpt-4.1",
+
+        input=[
+
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "You are an expert XAUUSD chart analyst. "
+                            "Describe ONLY what you see in the chart. "
+                            "Do not give BUY or SELL signals. "
+                            "Extract trend, support, resistance, "
+                            "breakout, pullback, candles and market structure."
+                        )
+                    }
+                ]
+            },
+
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/png;base64,{encoded_image}"
+                    }
+                ]
+            }
+
+        ]
+
+    )
+
+    return response.output_text
