@@ -47,8 +47,6 @@ response = model.generate_content(
         image,
     ]
                 },
-            ]
-        )
         if hasattr(response, "text") and response.text:
             return response.text
         return "❌ Gemini returned an empty response."
