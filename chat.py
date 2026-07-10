@@ -1,44 +1,41 @@
-from openai import OpenAI
+import json
+from pathlib import Path
 
-from config import Config
-from prompts import (
-    SYSTEM_PROMPT,
-    KNOWLEDGE_BASE,
-    OUTPUT_RULES,
-)
-
-client = OpenAI(
-    api_key=Config.OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1",
-)
+KNOWLEDGE_FILE = Path("data/knowledge.json")
 
 
-def chat_with_ai(message: str) -> str:
-    try:
-        prompt = f"""
-{SYSTEM_PROMPT}
+class SNRZKnowledge:
+    def __init__(self):
+        self.data = self.load_knowledge()
 
-{KNOWLEDGE_BASE}
+    def load_knowledge(self):
+        try:
+            with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except FileNotFoundError:
+            return {}
+        except json.JSONDecodeError:
+            print("ERROR: knowledge.json is invalid.")
+            return {}
 
-{OUTPUT_RULES}
+    def search(self, question: str):
+        question = question.lower().strip()
 
-User Question:
+        for topic in self.data.values():
+            keywords = topic.get("keywords", [])
 
-{message}
-"""
+            for keyword in keywords:
+                if keyword.lower() in question:
+                    return topic.get("answer")
 
-        response = client.chat.completions.create(
-            model="qwen/qwen2.5-vl-72b-instruct:free",
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            temperature=0.2,
+        return (
+            "ببورە، وەڵامێک بۆ ئەم پرسیارە لە زانیارییەکانی SNRZ نەدۆزرایەوە.\n\n"
+            "تکایە پرسیارەکەت بە شێوەیەکی تر بنووسە."
         )
 
-        return response.choices[0].message.content
 
-    except Exception as e:
-        return f"❌ هەڵە:\n{str(e)}"
+knowledge = SNRZKnowledge()
+
+
+def get_answer(message: str) -> str:
+    return knowledge.search(message)
