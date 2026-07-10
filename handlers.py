@@ -1,3 +1,7 @@
+from telegram import Update
+from telegram.ext import ContextTypes
+
+from knowledge import get_answer
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not update.message or not update.message.text:
