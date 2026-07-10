@@ -3,143 +3,46 @@ handlers.py
 Telegram handlers for SNRZ Bot
 """
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update
+from telegram.ext import ContextTypes
 
-from telegram.ext import (
-    ContextTypes,
-    CommandHandler,
-    CallbackQueryHandler,
-)
-
-from config import logger
-from knowledge import get_knowledge
+from knowledge import get_answer
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "📚 SNRZ Knowledge",
-                callback_data="knowledge"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "📊 SNRZ Chart Analysis",
-                callback_data="chart"
-            )
-        ],
-    ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
     await update.message.reply_text(
-        "🤖 Welcome to SNRZ Bot\n\n"
-        "Choose a section:",
-        reply_markup=reply_markup
+        "👋 Welcome to SNRZ Bot!\n\n"
+        "Type a keyword like:\n"
+        "- VS\n"
+        "- VR\n"
+        "- PO2\n"
+        "- SBR\n"
+        "- RBS"
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Commands:\n\n"
-        "/start - Start bot\n"
-        "/help - Help menu"
+        "📚 SNRZ Bot Help\n\n"
+        "Use /start to begin.\n"
+        "Send any SNRZ keyword to get its explanation."
     )
 
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
 
-    if query.data == "knowledge":
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "🔙 Back",
-                    callback_data="back"
-                )
-            ]
-        ]
+    answer = get_answer(text)
 
-        await query.edit_message_text(
-            "📚 SNRZ Knowledge\n\n"
-            "VS\n"
-            "VR\n"
-            "PO2\n"
-            "More SNRZ concepts coming...",
-            reply_markup=InlineKeyboardMarkup(keyboard)
+    if answer:
+        await update.message.reply_text(answer)
+    else:
+        await update.message.reply_text(
+            "❌ Sorry, I don't know that SNRZ term yet."
         )
 
 
-    elif query.data == "chart":
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "📷 Upload Chart",
-                    callback_data="upload_chart"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🔙 Back",
-                    callback_data="back"
-                )
-            ]
-        ]
-
-        await query.edit_message_text(
-            "📊 SNRZ Chart Analysis\n\n"
-            "Upload your chart for analysis.",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
-
-    elif query.data == "back":
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "📚 SNRZ Knowledge",
-                    callback_data="knowledge"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "📊 SNRZ Chart Analysis",
-                    callback_data="chart"
-                )
-            ],
-        ]
-
-        await query.edit_message_text(
-            "🤖 SNRZ Bot Menu",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
-
-
-    elif query.data == "upload_chart":
-        await query.edit_message_text(
-            "📷 Please upload your chart image.\n\n"
-            "Chart analysis module will be connected soon."
-        )
-
-
-def register_handlers(application):
-
-    application.add_handler(
-        CommandHandler("start", start)
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "❌ Unknown command."
     )
-
-    application.add_handler(
-        CommandHandler("help", help_command)
-    )
-
-    application.add_handler(
-        CallbackQueryHandler(button_handler)
-    )
-
-    logger.info("Handlers registered successfully")
