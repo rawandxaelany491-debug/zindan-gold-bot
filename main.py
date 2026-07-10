@@ -1,26 +1,27 @@
 """
 main.py
+
+Telegram Bot for SNRZ AI
 """
 
-import os
 import logging
 
 from telegram import Update
 from telegram.ext import (
     Application,
     CommandHandler,
-    MessageHandler,
     ContextTypes,
+    MessageHandler,
     filters,
 )
 
-from config import Config
 from analysis import analyze_chart
 from chat import chat_with_ai
+from config import Config
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
+    format="%(asctime)s | %(levelname)s | %(message)s",
 )
 
 logger = logging.getLogger(__name__)
@@ -28,32 +29,25 @@ logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 بەخێربێیت بۆ SNRZ AI Bot.\n\n"
-        "📷 وێنەی TradingView ـی XAUUSD بنێرە بۆ شیکردنەوە.\n"
-        "💬 یان هەر پرسیارێکت لەسەر SNRZ هەیە بنووسە."
+        "👋 بەخێربێیت بۆ SNRZ AI Bot\n\n"
+        "📷 وێنەی چارتی XAUUSD لە TradingView بنێرە.\n"
+        "💬 یان پرسیارێکت لەسەر SNRZ بنووسە."
     )
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        photo = update.message.photo[-1]
-
-        telegram_file = await context.bot.get_file(photo.file_id)
-
-        image_path = "chart.png"
-
-        await telegram_file.download_to_drive(image_path)
-
-        with open(image_path, "rb") as f:
-            image_bytes = f.read()
-
-        os.remove(image_path)
-
         await update.message.reply_text(
-            "⏳ چاوەڕێبە... شیکردنەوە دەکرێت."
+            "⏳ شیکردنەوە دەکرێت..."
         )
 
-        result = analyze_chart(image_bytes)
+        photo = update.message.photo[-1]
+
+        file = await context.bot.get_file(photo.file_id)
+
+        image_bytes = await file.download_as_bytearray()
+
+        result = analyze_chart(bytes(image_bytes))
 
         await update.message.reply_text(result)
 
@@ -61,19 +55,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
 
         await update.message.reply_text(
-            f"❌ Error:\n{e}"
+            "❌ هەڵەیەک ڕوویدا."
         )
 
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        user_message = update.message.text
-
         await update.message.reply_text(
             "💬 چاوەڕێبە..."
         )
 
-        result = chat_with_ai(user_message)
+        result = chat_with_ai(update.message.text)
 
         await update.message.reply_text(result)
 
@@ -81,7 +73,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.exception(e)
 
         await update.message.reply_text(
-            f"❌ Error:\n{e}"
+            "❌ هەڵەیەک ڕوویدا."
         )
 
 
@@ -95,7 +87,9 @@ def main():
         .build()
     )
 
-    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        CommandHandler("start", start)
+    )
 
     app.add_handler(
         MessageHandler(
@@ -111,7 +105,7 @@ def main():
         )
     )
 
-    logger.info("Bot Started...")
+    logger.info("✅ SNRZ Bot Started")
 
     app.run_polling()
 
