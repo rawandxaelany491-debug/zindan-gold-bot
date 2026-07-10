@@ -87,7 +87,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         question
     )
 
-    answer = knowledge.search(question)
+    answer = get_answer(question)
 
     await update.message.reply_text(
         answer,
