@@ -1,51 +1,32 @@
 """
 knowledge.py
-Knowledge Base loader and search engine
+Knowledge loader for SNRZ Telegram Bot
 """
 
 import json
 from pathlib import Path
 
-from config import KNOWLEDGE_FILE, logger
+
+DATA_FILE = Path("data/knowledge.json")
 
 
-class KnowledgeBase:
-    def __init__(self):
-        self.data = {}
-        self.load()
+def load_knowledge():
+    """Load knowledge from JSON file."""
 
-    def load(self):
-        path = Path(KNOWLEDGE_FILE)
+    if not DATA_FILE.exists():
+        return {}
 
-        if not path.exists():
-            logger.warning("Knowledge file not found.")
-            self.data = {}
-            return
-
-        with open(path, "r", encoding="utf-8") as file:
-            self.data = json.load(file)
-
-        logger.info("Knowledge Base Loaded.")
-
-    def search(self, question: str):
-
-        question = question.lower().strip()
-
-        for key, value in self.data.items():
-
-            keywords = value.get("keywords", [])
-
-            if key.lower() in question:
-                return value["answer"]
-
-            for word in keywords:
-                if word.lower() in question:
-                    return value["answer"]
-
-        return (
-            "❌ وەڵامێک بۆ ئەم پرسیارە لە زانیارییەکانی "
-            "SNRZ نەدۆزرایەوە."
-        )
+    with open(DATA_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 
 
-knowledge = KnowledgeBase()
+knowledge = load_knowledge()
+
+
+def get_answer(question: str):
+    """Return an answer if the question exists."""
+
+    if not question:
+        return None
+
+    return knowledge.get(question.strip().upper())
