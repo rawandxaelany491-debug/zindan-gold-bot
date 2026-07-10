@@ -1,1 +1,74 @@
-ا
+{
+  "support": {
+    "keywords": [
+      "support",
+      "سەپۆرت",
+      "پاڵپشتی"
+    ],
+    "answer": "Support (پاڵپشتی): ناوچەیەکە کە نرخ لێی بەرزدەبێتەوە."
+  },
+
+  "resistance": {
+    "keywords": [
+      "resistance",
+      "ڕیزستانس",
+      "بەرگری"
+    ],
+    "answer": "Resistance (بەرگری): ناوچەیەکە کە نرخ لێی دادەبەزێت."
+  },
+
+  "sbr": {
+    "keywords": [
+      "sbr"
+    ],
+    "answer": "SBR (Support Breakout to Resistance): کاتێک Support دەشکێت، دەبێتە Resistance و ئاماژەی SELL ـە."
+  },
+
+  "rbs": {
+    "keywords": [
+      "rbs"
+    ],
+    "answer": "RBS (Resistance Breakout to Support): کاتێک Resistance دەشکێت، دەبێتە Support و ئاماژەی BUY ـە."
+  },
+
+  "srr": {
+    "keywords": [
+      "srr"
+    ],
+    "answer": "SRR: پێویستی بە دوو شکاندنی ئاست هەیە، دواتر Pullback و Entry."
+  },
+
+  "rss": {
+    "keywords": [
+      "rss"
+    ],
+    "answer": "RSS: پێویستی بە دوو شکاندنی ئاست هەیە، دواتر Pullback و Entry."
+  },
+
+  "gap": {
+    "keywords": [
+      "gap",
+      "gap strategy",
+      "گەپ"
+    ],
+    "answer": "Gap Strategy: ئەگەر Gap دروست ببێت و Pullback ڕووبدات، دەتوانرێت دوای Confirmation Entry بکرێت."
+  },
+
+  "false_breakout": {
+    "keywords": [
+      "false breakout",
+      "false breakout area"
+    ],
+    "answer": "False Breakout Area: ناوچەیەکە کە مارکێت دوو جار شکاندوویەتی، بەڵام دواتر ڕێزی لێ دەگرێتەوە."
+  },
+
+  "money_management": {
+    "keywords": [
+      "money management",
+      "risk",
+      "ڕیسک",
+      "capital"
+    ],
+    "answer": "Money Management: سەرمایەکەت دابەش بکە، لە Target 1 سەرمایەکەت بپارێزە و بۆ Target 2 بە قازانجەکەت ڕیسک بکە."
+  }
+}
