@@ -15,7 +15,7 @@ from prompts import (
 
 genai.configure(api_key=Config.GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
 
 def chat_with_ai(message: str) -> str:
