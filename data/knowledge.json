@@ -1,36 +1,71 @@
-"""
-knowledge.py
-SNRZ Knowledge Loader
-"""
+{
+  "VS": {
+    "title": "Valid Support (VS)",
+    "content": [
+      "Valid Support بریتییە لە Supportێکی کارا.",
+      "دەبێت First Movement و Second Movement هەبێت.",
+      "لە BUY Confirmation بەکاردێت."
+    ]
+  },
 
-import json
-from pathlib import Path
+  "VR": {
+    "title": "Valid Resistance (VR)",
+    "content": [
+      "Valid Resistance بریتییە لە Resistanceێکی کارا.",
+      "دەبێت First Movement و Second Movement هەبێت.",
+      "لە SELL Confirmation بەکاردێت."
+    ]
+  },
 
-# Path to knowledge file
-KNOWLEDGE_FILE = Path("data/knowledge.json")
+  "SBR": {
+    "title": "Support Breakout To Resistance",
+    "content": [
+      "کاتێک Support دەشکێت.",
+      "دەبێتە Resistance.",
+      "ئاماژەی SELL ـە."
+    ]
+  },
 
+  "RBS": {
+    "title": "Resistance Breakout To Support",
+    "content": [
+      "کاتێک Resistance دەشکێت.",
+      "دەبێتە Support.",
+      "ئاماژەی BUY ـە."
+    ]
+  },
 
-def load_knowledge():
-    """Load knowledge from JSON file."""
+  "SRR": {
+    "title": "Support Breakout 2 Resistance",
+    "content": [
+      "دوو Breakout پێویستە.",
+      "پاشان Pullback.",
+      "دواتر Entry."
+    ]
+  },
 
-    if not KNOWLEDGE_FILE.exists():
-        return {}
+  "RSS": {
+    "title": "Resistance Breakout 2 Support",
+    "content": [
+      "دوو Breakout پێویستە.",
+      "پاشان Pullback.",
+      "دواتر Entry."
+    ]
+  },
 
-    with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as file:
-        return json.load(file)
+  "PO2": {
+    "title": "Power Of Second Touch",
+    "content": [
+      "PO2 یەکێکە لە بەهێزترین تۆپیکەکانی SNRZ.",
+      "لە دەست لێدانی دووەمدا Confirmation دەدات."
+    ]
+  },
 
-
-knowledge = load_knowledge()
-
-
-def get_answer(question: str):
-    """
-    Search for a topic in the knowledge base.
-    """
-
-    if not question:
-        return None
-
-    key = question.strip().upper()
-
-    return knowledge.get(key)
+  "GAP": {
+    "title": "Gap Strategy",
+    "content": [
+      "مارکێت زۆرجار بۆشاییەکان پڕ دەکاتەوە.",
+      "لەگەڵ Confirmation دەتوانرێت Entry بکرێت."
+    ]
+  }
+}
