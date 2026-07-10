@@ -8,7 +8,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from config import logger
-from knowledge import knowledge
+from chat import get_answer
 
 
 WELCOME_MESSAGE = """
