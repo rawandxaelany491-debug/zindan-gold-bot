@@ -1,10 +1,4 @@
-"""
-chat.py
-
-Chat with Gemini using only the SNRZ Strategy.
-"""
-
-import google.generativeai as genai
+from openai import OpenAI
 
 from config import Config
 from prompts import (
@@ -13,19 +7,15 @@ from prompts import (
     OUTPUT_RULES,
 )
 
-genai.configure(api_key=Config.GEMINI_API_KEY)
+client = OpenAI(
+    api_key=Config.OPENROUTER_API_KEY,
+    base_url="https://openrouter.ai/api/v1",
+)
 
-
-
-model = genai.GenerativeModel("gemini-2.0-flash")
 
 def chat_with_ai(message: str) -> str:
-    """
-    Answer user questions using ONLY the SNRZ Strategy.
-    """
-
     try:
-        full_prompt = f"""
+        prompt = f"""
 {SYSTEM_PROMPT}
 
 {KNOWLEDGE_BASE}
@@ -37,14 +27,18 @@ User Question:
 {message}
 """
 
-        response = model.generate_content(full_prompt)
+        response = client.chat.completions.create(
+            model="qwen/qwen2.5-vl-72b-instruct:free",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.2,
+        )
 
-        text = getattr(response, "text", "").strip()
-
-        if text:
-            return text
-
-        return "❌ هیچ وەڵامێک لە Gemini وەرنەگیرا."
+        return response.choices[0].message.content
 
     except Exception as e:
         return f"❌ هەڵە:\n{str(e)}"
