@@ -18,7 +18,7 @@ genai.configure(api_key=Config.GEMINI_API_KEY)
 
 genai.configure(api_key=Config.GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 def chat_with_ai(message: str) -> str:
     """
