@@ -1,6 +1,6 @@
 """
 handlers.py
-Telegram message handlers for SNRZ Bot
+Telegram handlers for SNRZ Bot
 """
 
 from telegram import Update
@@ -8,18 +8,25 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 from config import logger
+from knowledge import knowledge
 
 
 WELCOME_MESSAGE = """
 👋 بەخێربێیت بۆ SNRZ Assistant
 
-ئەم بۆتە تەنها لەسەر ستراتیژی SNRZ وەڵام دەدات.
+📚 ئەم بۆتە تەنها لەسەر ستراتیژی SNRZ کار دەکات.
 
 دەتوانیت پرسیار بکەیت، وەک:
 
+• VS چییە؟
+• VR چییە؟
+• PO2 چییە؟
 • SBR چییە؟
 • RBS چییە؟
+• SRR چییە؟
+• RSS چییە؟
 • Gap Strategy چییە؟
+• False Breakout Area چییە؟
 • Money Management چییە؟
 
 ✍️ پرسیارەکەت بنووسە.
@@ -27,7 +34,7 @@ WELCOME_MESSAGE = """
 
 
 HELP_MESSAGE = """
-📚 فەرمانەکان
+📖 SNRZ Assistant Help
 
 /start
 دەستپێکردنی بۆت
@@ -35,11 +42,25 @@ HELP_MESSAGE = """
 /help
 پیشاندانی یارمەتی
 
-✍️ هەر پرسیارێکی SNRZ بنووسە.
+📝 تەنها پرسیارەکانی SNRZ بنووسە.
+
+نمونە:
+
+VS چییە؟
+VR چییە؟
+PO2 چییە؟
+Gap Strategy چییە؟
+Money Management چییە؟
 """
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    logger.info(
+        "User %s started the bot.",
+        update.effective_user.id
+    )
+
     await update.message.reply_text(
         WELCOME_MESSAGE,
         parse_mode=ParseMode.HTML
@@ -47,6 +68,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     await update.message.reply_text(
         HELP_MESSAGE,
         parse_mode=ParseMode.HTML
@@ -54,10 +76,27 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
 
-    logger.info(f"Message: {text}")
+    if not update.message:
+        return
+
+    question = update.message.text.strip()
+
+    logger.info(
+        "Question: %s",
+        question
+    )
+
+    answer = knowledge.search(question)
 
     await update.message.reply_text(
-        "🚧 ئەم بەشە لە فایلەکانی داهاتوو بە Knowledge Base پەیوەست دەکرێت."
+        answer,
+        parse_mode=ParseMode.HTML
+    )
+
+
+async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    await update.message.reply_text(
+        "❌ ئەم فەرمانە ناسراو نییە.\n\n/help"
     )
