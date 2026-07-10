@@ -38,4 +38,4 @@ knowledge = SNRZKnowledge()
 
 
 def get_answer(message: str) -> str:
-    return knowledge.search(message)
+    return knowledge.search(message) 
