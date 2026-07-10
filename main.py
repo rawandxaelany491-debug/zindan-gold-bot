@@ -1,6 +1,5 @@
 """
 main.py
-SNRZ Telegram Bot
 """
 
 from telegram.ext import (
@@ -10,7 +9,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import BOT_TOKEN, logger
+from config import BOT_TOKEN
 from handlers import (
     start,
     help_command,
@@ -19,47 +18,23 @@ from handlers import (
 )
 
 
-def main():
+app = Application.builder().token(BOT_TOKEN).build()
 
-    logger.info("Starting SNRZ Bot...")
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("help", help_command))
 
-    application = (
-        Application.builder()
-        .token(BOT_TOKEN)
-        .build()
+app.add_handler(
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        handle_message,
     )
+)
 
-    # Commands
-    application.add_handler(
-        CommandHandler("start", start)
+app.add_handler(
+    MessageHandler(
+        filters.COMMAND,
+        unknown,
     )
+)
 
-    application.add_handler(
-        CommandHandler("help", help_command)
-    )
-
-    # Text Messages
-    application.add_handler(
-        MessageHandler(
-            filters.TEXT & ~filters.COMMAND,
-            handle_message,
-        )
-    )
-
-    # Unknown Commands
-    application.add_handler(
-        MessageHandler(
-            filters.COMMAND,
-            unknown,
-        )
-    )
-
-    logger.info("Bot Started Successfully.")
-
-    application.run_polling(
-        drop_pending_updates=True,
-    )
-
-
-if __name__ == "__main__":
-    main()
+app.run_polling()
