@@ -8,245 +8,138 @@ from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
 )
-from telegram.constants import ParseMode
-from telegram.ext import ContextTypes
+
+from telegram.ext import (
+    ContextTypes,
+    CommandHandler,
+    CallbackQueryHandler,
+)
 
 from config import logger
-from knowledge import knowledge
+from knowledge import get_knowledge
 
 
-WELCOME_MESSAGE = """
-👋 Welcome to SNRZ Assistant
-
-Choose one of the services below.
-"""
-
-
-HELP_MESSAGE = """
-📖 SNRZ Assistant
-
-/start - Main Menu
-/help - Help
-"""
-
-
-CHART_ANALYSIS_MESSAGE = """
-━━━━━━━━━━━━━━━━━━━━
-📊 SNRZ CHART ANALYSIS
-━━━━━━━━━━━━━━━━━━━━
-
-👋 Welcome to the SNRZ Analysis System.
-
-Upload your Gold (XAUUSD) chart and receive a complete technical analysis based exclusively on the official SNRZ Strategy.
-
-━━━━━━━━━━━━━━━━━━━━
-📌 WHAT YOU WILL RECEIVE
-━━━━━━━━━━━━━━━━━━━━
-
-📈 Market Trend
-
-📍 Valid Support (VS)
-
-📍 Valid Resistance (VR)
-
-📍 I.VS
-
-📍 I.VR
-
-🔄 SBR
-
-🔄 RBS
-
-🔄 SRR
-
-🔄 RSS
-
-⚡ PO2
-
-⚡ PO2 Inversion
-
-⚡ Gap Strategy
-
-⚡ False Breakout Area
-
-⚡ Liquidity Run
-
-⚡ Liquidity Sweep
-
-🎯 Entry Zone
-
-🎯 Confirmation
-
-🎯 Stop Loss
-
-🎯 Take Profit
-
-🎯 Risk / Reward
-
-🎯 Probability
-
-🎯 Money Management
-
-━━━━━━━━━━━━━━━━━━━━
-📷 CHART REQUIREMENTS
-━━━━━━━━━━━━━━━━━━━━
-
-✅ Gold (XAUUSD)
-
-✅ Clean Screenshot
-
-✅ Timeframe Visible
-
-✅ High Quality Image
-
-━━━━━━━━━━━━━━━━━━━━
-📤 READY TO ANALYZE
-━━━━━━━━━━━━━━━━━━━━
-
-Please upload your chart to begin the SNRZ analysis.
-"""
-
-
-def main_menu():
-
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton(
                 "📚 SNRZ Knowledge",
-                callback_data="knowledge",
+                callback_data="knowledge"
             )
         ],
         [
             InlineKeyboardButton(
                 "📊 SNRZ Chart Analysis",
-                callback_data="analysis",
+                callback_data="chart"
             )
         ],
     ]
 
-    return InlineKeyboardMarkup(keyboard)
-
-
-def analysis_menu():
-
-    keyboard = [
-        [
-            InlineKeyboardButton(
-                "📷 Upload Chart",
-                callback_data="upload_chart",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "🔙 Back",
-                callback_data="back",
-            )
-        ],
-    ]
-
-    return InlineKeyboardMarkup(keyboard)
-    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    logger.info(
-        "User %s started the bot.",
-        update.effective_user.id,
-    )
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
-        WELCOME_MESSAGE,
-        reply_markup=main_menu(),
-        parse_mode=ParseMode.HTML,
+        "🤖 Welcome to SNRZ Bot\n\n"
+        "Choose a section:",
+        reply_markup=reply_markup
     )
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
     await update.message.reply_text(
-        HELP_MESSAGE,
-        parse_mode=ParseMode.HTML,
+        "Commands:\n\n"
+        "/start - Start bot\n"
+        "/help - Help menu"
     )
 
 
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     if query.data == "knowledge":
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🔙 Back",
+                    callback_data="back"
+                )
+            ]
+        ]
 
         await query.edit_message_text(
             "📚 SNRZ Knowledge\n\n"
-            "Write any SNRZ question.\n\n"
-            "Examples:\n"
-            "• VS\n"
-            "• VR\n"
-            "• PO2\n"
-            "• Gap Strategy\n"
-            "• Money Management",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "🔙 Back",
-                            callback_data="back",
-                        )
-                    ]
-                ]
-            ),
+            "VS\n"
+            "VR\n"
+            "PO2\n"
+            "More SNRZ concepts coming...",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    elif query.data == "analysis":
+
+    elif query.data == "chart":
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "📷 Upload Chart",
+                    callback_data="upload_chart"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🔙 Back",
+                    callback_data="back"
+                )
+            ]
+        ]
 
         await query.edit_message_text(
-            CHART_ANALYSIS_MESSAGE,
-            reply_markup=analysis_menu(),
+            "📊 SNRZ Chart Analysis\n\n"
+            "Upload your chart for analysis.",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    elif query.data == "upload_chart":
-
-        await query.edit_message_text(
-            "📷 Please upload your Gold (XAUUSD) chart.\n\n"
-            "Chart analysis will be available in the next step.",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "🔙 Back",
-                            callback_data="back",
-                        )
-                    ]
-                ]
-            ),
-        )
 
     elif query.data == "back":
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "📚 SNRZ Knowledge",
+                    callback_data="knowledge"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "📊 SNRZ Chart Analysis",
+                    callback_data="chart"
+                )
+            ],
+        ]
 
         await query.edit_message_text(
-            WELCOME_MESSAGE,
-            reply_markup=main_menu(),
+            "🤖 SNRZ Bot Menu",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
-        async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    if not update.message:
-        return
 
-    question = update.message.text.strip()
+    elif query.data == "upload_chart":
+        await query.edit_message_text(
+            "📷 Please upload your chart image.\n\n"
+            "Chart analysis module will be connected soon."
+        )
 
-    logger.info(
-        "Question: %s",
-        question,
+
+def register_handlers(application):
+
+    application.add_handler(
+        CommandHandler("start", start)
     )
 
-    answer = knowledge.search(question)
-
-    await update.message.reply_text(
-        answer,
-        parse_mode=ParseMode.HTML,
+    application.add_handler(
+        CommandHandler("help", help_command)
     )
 
-
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text(
-        "❌ Unknown command.\n\nUse /start"
+    application.add_handler(
+        CallbackQueryHandler(button_handler)
     )
+
+    logger.info("Handlers registered successfully")
