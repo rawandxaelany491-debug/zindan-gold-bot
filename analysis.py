@@ -7,7 +7,7 @@ from prompts import SYSTEM_PROMPT
 
 genai.configure(api_key=Config.GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.5-pro")
 
 
 def analyze_chart(image_bytes):
