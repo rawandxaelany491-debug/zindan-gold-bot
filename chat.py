@@ -16,7 +16,6 @@ from prompts import (
 genai.configure(api_key=Config.GEMINI_API_KEY)
 
 
-genai.configure(api_key=Config.GEMINI_API_KEY)
 
 model = genai.GenerativeModel("gemini-2.0-flash")
 
