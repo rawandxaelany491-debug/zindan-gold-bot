@@ -1,76 +1,41 @@
-"""
-handlers.py
-SNRZ Telegram Bot Handlers
-"""
-
-from telegram import Update
-from telegram.ext import ContextTypes
-
-from knowledge import get_answer
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    text = (
-        "👋 بەخێربێیت بۆ SNRZ Telegram Bot\n\n"
-        "📚 هەر بابەتێکی SNRZ بنووسە.\n\n"
-        "نمونە:\n"
-        "• VS\n"
-        "• VR\n"
-        "• PO2\n"
-        "• SBR\n"
-        "• RBS\n"
-        "• SRR\n"
-        "• RSS\n"
-        "• GAP\n"
-        "• Liquidity Run"
-    )
-
-    await update.message.reply_text(text)
-
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text(
-        "📖 تەنها ناوی بابەتەکە بنێرە.\n\n"
-        "بۆ نموونە:\n"
-        "VS\n"
-        "VR\n"
-        "PO2"
-    )
-
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    question = update.message.text
+    if not update.message or not update.message.text:
+        return
+
+    question = update.message.text.strip()
 
     answer = get_answer(question)
 
     if answer:
 
-        if isinstance(answer, dict):
-            title = answer.get("title", "")
-            content = answer.get("content", "")
+        title = answer.get("title", "")
 
-            if isinstance(content, list):
-                content = "\n".join(f"• {item}" for item in content)
+        content = answer.get("content", "")
 
-            text = f"📚 {title}\n\n{content}"
+        if isinstance(content, list):
+            content = "\n".join(f"• {line}" for line in content)
 
-        else:
-            text = str(answer)
+        text = (
+            f"📚 {title}\n"
+            f"{'─'*25}\n\n"
+            f"{content}"
+        )
 
     else:
 
         text = (
-            "❌ ببورە، ئەم بابەتە لە Knowledge Base نەدۆزرایەوە."
+            "❌ ئەم بابەتە لە Knowledge Base نەدۆزرایەوە.\n\n"
+            "نمونە:\n"
+            "• VS\n"
+            "• VR\n"
+            "• PO2\n"
+            "• GAP\n"
+            "• Money Management"
         )
 
-    await update.message.reply_text(text)
-
-
-async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    await update.message.reply_text(
-        "❌ ئەم فرمانە ناسراو نییە."
-    )
+    if len(text) > 4000:
+        for i in range(0, len(text), 4000):
+            await update.message.reply_text(text[i:i+4000])
+    else:
+        await update.message.reply_text(text)
