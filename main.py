@@ -1,10 +1,8 @@
 """
 main.py
-
-Telegram Bot for SNRZ AI
+SNRZ Telegram Bot
+Production Ready
 """
-
-import logging
 
 from telegram import Update
 from telegram.ext import (
@@ -15,99 +13,75 @@ from telegram.ext import (
     filters,
 )
 
-from analysis import analyze_chart
-from chat import chat_with_ai
-from config import Config
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
+from config import BOT_TOKEN, logger
+from handlers import (
+    handle_message,
+    help_command,
+    start,
+    unknown,
 )
 
-logger = logging.getLogger(__name__)
 
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 بەخێربێیت بۆ SNRZ AI Bot\n\n"
-        "📷 وێنەی چارتی XAUUSD لە TradingView بنێرە.\n"
-        "💬 یان پرسیارێکت لەسەر SNRZ بنووسە."
+    logger.exception(
+        "Unhandled Exception:",
+        exc_info=context.error,
     )
 
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        await update.message.reply_text(
-            "⏳ شیکردنەوە دەکرێت..."
-        )
-
-        photo = update.message.photo[-1]
-
-        file = await context.bot.get_file(photo.file_id)
-
-        image_bytes = await file.download_as_bytearray()
-
-        result = analyze_chart(bytes(image_bytes))
-
-        await update.message.reply_text(result)
-
-    except Exception as e:
-        logger.exception(e)
-
-        await update.message.reply_text(
-            "❌ هەڵەیەک ڕوویدا."
-        )
-
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        await update.message.reply_text(
-            "💬 چاوەڕێبە..."
-        )
-
-        result = chat_with_ai(update.message.text)
-
-        await update.message.reply_text(result)
-
-    except Exception as e:
-        logger.exception(e)
-
-        await update.message.reply_text(
-            "❌ هەڵەیەک ڕوویدا."
-        )
+    if isinstance(update, Update):
+        if update.effective_message:
+            await update.effective_message.reply_text(
+                "❌ هەڵەیەک ڕوویدا، تکایە دووبارە هەوڵ بدە."
+            )
 
 
 def main():
 
-    Config.validate()
+    logger.info("Starting SNRZ Telegram Bot...")
 
-    app = (
+    application = (
         Application.builder()
-        .token(Config.TELEGRAM_BOT_TOKEN)
+        .token(BOT_TOKEN)
         .build()
     )
 
-    app.add_handler(
+    # Commands
+    application.add_handler(
         CommandHandler("start", start)
     )
 
-    app.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo,
-        )
+    application.add_handler(
+        CommandHandler("help", help_command)
     )
 
-    app.add_handler(
+    # Text Messages
+    application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            handle_text,
+            handle_message,
         )
     )
 
-    logger.info("✅ SNRZ Bot Started")
+    # Unknown Commands
+    application.add_handler(
+        MessageHandler(
+            filters.COMMAND,
+            unknown,
+        )
+    )
 
-    app.run_polling()
+    # Error Handler
+    application.add_error_handler(
+        error_handler
+    )
+
+    logger.info("Bot Started Successfully.")
+
+    application.run_polling(
+        allowed_updates=Update.ALL_TYPES,
+        drop_pending_updates=True,
+    )
 
 
 if __name__ == "__main__":
