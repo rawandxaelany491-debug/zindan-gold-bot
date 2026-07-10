@@ -1,0 +1,193 @@
+{
+  "vs": {
+    "keywords": [
+      "vs",
+      "v.s",
+      "valid support",
+      "ڤی ئێس",
+      "پاڵپشتی ڕاستەقینە"
+    ],
+    "answer": "Valid Support (VS) بریتییە لە Supportێکی ڕاستەقینە کە First Movement و Second Movement هەیە. لە ستراتیژی SNRZ یەکێکە لە بەهێزترین زۆنەکان."
+  },
+
+  "vr": {
+    "keywords": [
+      "vr",
+      "v.r",
+      "valid resistance",
+      "ڤی ئار",
+      "بەرگری ڕاستەقینە"
+    ],
+    "answer": "Valid Resistance (VR) بریتییە لە Resistanceێکی ڕاستەقینە کە First Movement و Second Movement هەیە و زۆر بەهێزە."
+  },
+
+  "ivs": {
+    "keywords": [
+      "ivs",
+      "i.vs",
+      "inversion valid support"
+    ],
+    "answer": "IVS (Inversion Valid Support) بریتییە لە گۆڕانی Valid Resistance بۆ Support."
+  },
+
+  "ivr": {
+    "keywords": [
+      "ivr",
+      "i.vr",
+      "inversion valid resistance"
+    ],
+    "answer": "IVR (Inversion Valid Resistance) بریتییە لە گۆڕانی Valid Support بۆ Resistance."
+  },
+
+  "support": {
+    "keywords": [
+      "support",
+      "سەپۆرت",
+      "پاڵپشتی"
+    ],
+    "answer": "Support ناوچەیەکە کە نرخ زۆرجار لێی بەرزدەبێتەوە."
+  },
+
+  "resistance": {
+    "keywords": [
+      "resistance",
+      "ڕیزستانس",
+      "بەرگری"
+    ],
+    "answer": "Resistance ناوچەیەکە کە نرخ زۆرجار لێی دادەبەزێت."
+  },
+  "po2": {
+    "keywords": [
+      "po2",
+      "power of second touch",
+      "دەست لێدانی دووەم"
+    ],
+    "answer": "PO2 (Power Of Second Touch) یەکێکە لە بەهێزترین تۆپیکەکانی SNRZ. بریتییە لە هێزی دەست لێدانی دووەمی زۆنێکی ڕاستەقینە و لە ڕیزبەندی SNRZ دوای Trend دێت."
+  },
+
+  "po2_inversion": {
+    "keywords": [
+      "po2 inversion",
+      "پوو توو ئینڤێرژن"
+    ],
+    "answer": "PO2 Inversion بریتییە لە PO2 ـێکی پێچەوانە و یەکێکە لە بەهێزترین کۆنفیرمەیشنەکانی SNRZ."
+  },
+
+  "sbr": {
+    "keywords": [
+      "sbr",
+      "support breakout to resistance"
+    ],
+    "answer": "SBR (Support Breakout to Resistance) واتە کاتێک Support دەشکێت و دەبێتە Resistance. ئەمە سیگناڵی SELL ـە."
+  },
+
+  "rbs": {
+    "keywords": [
+      "rbs",
+      "resistance breakout to support"
+    ],
+    "answer": "RBS (Resistance Breakout to Support) واتە کاتێک Resistance دەشکێت و دەبێتە Support. ئەمە سیگناڵی BUY ـە."
+  },
+
+  "srr": {
+    "keywords": [
+      "srr",
+      "support breakout 2 resistance"
+    ],
+    "answer": "SRR پێویستی بە دوو شکاندنی Support هەیە، پاشان Pullback بۆ Entry."
+  },
+
+  "rss": {
+    "keywords": [
+      "rss",
+      "resistance breakout 2 support"
+    ],
+    "answer": "RSS پێویستی بە دوو شکاندنی Resistance هەیە، پاشان Pullback بۆ Entry."
+  },
+  "gap_strategy": {
+    "keywords": [
+      "gap",
+      "gap strategy",
+      "گەپ",
+      "بۆشایی"
+    ],
+    "answer": "Gap Strategy یەکێکە لە تۆپیکەکانی SNRZ ـە. کاتێک بۆشاییەک لەنێوان Support و Resistance دروست دەبێت، مارکێت بە نزیکەی 80٪ مەیلی پڕکردنەوەی هەیە. دوای Pullback و Confirmation دەتوانرێت Entry بکرێت."
+  },
+
+  "false_breakout": {
+    "keywords": [
+      "false breakout",
+      "false breakout area",
+      "شکاندنی ساختە"
+    ],
+    "answer": "False Breakout Area ئەو ناوچەیەیە کە مارکێت دوو جار شکاندنی ساختەی کردووە، بەڵام دواتر گەڕاوەتەوە و ڕێزی لە ناوچەکە گرتووە."
+  },
+
+  "liquidity_run": {
+    "keywords": [
+      "liquidity run",
+      "run",
+      "لیکویدتی ڕەن"
+    ],
+    "answer": "Liquidity Run کاتێکە کە مارکێت Support یان Resistance بە Full Body دەشکێنێت و بەردەوام دەبێت لە هەمان ئاراستە."
+  },
+
+  "liquidity_sweep": {
+    "keywords": [
+      "liquidity sweep",
+      "sweep",
+      "لیکویدتی سوێپ"
+    ],
+    "answer": "Liquidity Sweep کاتێکە کە مارکێت تەنها بە Shadow لەسەر Support یان Resistance تێدەپەڕێت و دواتر دەگەڕێتەوە."
+  },
+
+  "trend": {
+    "keywords": [
+      "trend",
+      "ترێند"
+    ],
+    "answer": "Trend بەهێزترین تۆپیکی SNRZ ـە و لە ڕیزبەندی هێزی تۆپیکەکان پلەی یەکەمی هەیە. هەمیشە پێش هەر Entry ـێک ئاراستەی Trend دیاری بکە."
+  },
+
+  "money_management": {
+    "keywords": [
+      "money management",
+      "mm",
+      "بەڕێوەبردنی سەرمایە"
+    ],
+    "answer": "Money Management یەکێکە لە گرنگترین بەشەکانی SNRZ ـە. سەرمایەت بەش بەش بەکاربهێنە، لە Target یەکەم پارەی سەرەکی بپارێزە و تەنها بە قازانج بۆ Target دووەم ڕیسک بکە."
+  },
+  "timeframes": {
+    "keywords": [
+      "timeframe",
+      "time frame",
+      "تایمفریم"
+    ],
+    "answer": "لە SNRZ، Weekly → Daily → 4H بۆ Analysis، Daily → 4H → 1H، 4H → 1H → 30m، 1H → 30m → 15m، و 15m → 5m → 5m بۆ Confirmation بەکاردێن."
+  },
+
+  "confirmation": {
+    "keywords": [
+      "confirmation",
+      "کۆنفیرمەیشن"
+    ],
+    "answer": "بۆ BUY: VS، IVR، RBS، SRR. بۆ SELL: VR، IVS، SBR، RSS. Confirmation پێش Entry پێویستە."
+  },
+
+  "bot_info": {
+    "keywords": [
+      "help",
+      "about",
+      "snrz",
+      "یارمەتی"
+    ],
+    "answer": "ئەم بۆتە تەنها لەسەر ستراتیژی SNRZ کار دەکات و وەڵامەکان لەسەر بنەمای یاساکانی SNRZ پێشکەش دەکات."
+  },
+
+  "unknown_question": {
+    "keywords": [
+      "default"
+    ],
+    "answer": "ببورە، ئەم پرسیارە لە زانیارییەکانی SNRZ نەدۆزرایەوە. تکایە پرسیارەکەت بە شێوەیەکی تر بنووسە."
+  }
+}
