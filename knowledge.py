@@ -1,36 +1,51 @@
+"""
+knowledge.py
+Knowledge Base loader and search engine
+"""
+
 import json
-import os
+from pathlib import Path
 
-DB_FILE = "data/snrz_knowledge.json"
-
-
-def load_knowledge():
-    if not os.path.exists(DB_FILE):
-        return {
-            "version": "1.0",
-            "strategy": "SNRZ",
-            "knowledge": []
-        }
-
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+from config import KNOWLEDGE_FILE, logger
 
 
-def save_knowledge(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+class KnowledgeBase:
+    def __init__(self):
+        self.data = {}
+        self.load()
+
+    def load(self):
+        path = Path(KNOWLEDGE_FILE)
+
+        if not path.exists():
+            logger.warning("Knowledge file not found.")
+            self.data = {}
+            return
+
+        with open(path, "r", encoding="utf-8") as file:
+            self.data = json.load(file)
+
+        logger.info("Knowledge Base Loaded.")
+
+    def search(self, question: str):
+
+        question = question.lower().strip()
+
+        for key, value in self.data.items():
+
+            keywords = value.get("keywords", [])
+
+            if key.lower() in question:
+                return value["answer"]
+
+            for word in keywords:
+                if word.lower() in question:
+                    return value["answer"]
+
+        return (
+            "❌ وەڵامێک بۆ ئەم پرسیارە لە زانیارییەکانی "
+            "SNRZ نەدۆزرایەوە."
+        )
 
 
-def add_rule(title, content):
-    data = load_knowledge()
-
-    data["knowledge"].append({
-        "title": title,
-        "content": content
-    })
-
-    save_knowledge(data)
-
-
-def get_all_rules():
-    return load_knowledge()["knowledge"]
+knowledge = KnowledgeBase()
