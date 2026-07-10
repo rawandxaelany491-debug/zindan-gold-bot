@@ -18,7 +18,7 @@ from prompts import (
 
 genai.configure(api_key=Config.GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-2.5-pro")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
 def analyze_chart(image_bytes: bytes) -> str:
