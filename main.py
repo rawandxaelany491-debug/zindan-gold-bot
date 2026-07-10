@@ -10,11 +10,13 @@ from telegram.ext import (
     CommandHandler,
     ContextTypes,
     MessageHandler,
+    CallbackQueryHandler,
     filters,
 )
 
 from config import BOT_TOKEN, logger
 from handlers import (
+    button,
     handle_message,
     help_command,
     start,
@@ -53,6 +55,11 @@ def main():
 
     application.add_handler(
         CommandHandler("help", help_command)
+    )
+
+    # Buttons
+    application.add_handler(
+        CallbackQueryHandler(button)
     )
 
     # Text Messages
