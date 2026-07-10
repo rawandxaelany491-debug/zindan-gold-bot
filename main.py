@@ -1,52 +1,81 @@
-"""
-analysis.py
+import os
+import logging
 
-Analyze XAUUSD charts using the SNRZ Strategy.
-"""
-
-import io
-
-from PIL import Image
-import google.generativeai as genai
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters,
+)
 
 from config import Config
-from prompts import SYSTEM_PROMPT
+from analysis import analyze_chart
 
-# Configure Gemini
-genai.configure(api_key=Config.GEMINI_API_KEY)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
-# Load model
-model = genai.GenerativeModel("gemini-2.5-flash")
+logger = logging.getLogger(__name__)
 
 
-def analyze_chart(image_bytes):
-    """
-    Analyze a TradingView chart using SNRZ Strategy.
-    """
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 بەخێربێیت.\n\n"
+        "تکایە وێنەی TradingView ـی XAUUSD بنێرە."
+    )
 
+
+async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        # Open image
-        image = Image.open(io.BytesIO(image_bytes))
+        photo = update.message.photo[-1]
 
-        # Send prompt + image to Gemini
-        response = model.generate_content(
-            [
-                SYSTEM_PROMPT,
-                image,
-            ]
+        telegram_file = await context.bot.get_file(photo.file_id)
+
+        image_path = "chart.png"
+
+        await telegram_file.download_to_drive(image_path)
+
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        os.remove(image_path)
+
+        await update.message.reply_text(
+            "⏳ چاوەڕێبە... شیکردنەوە دەکرێت."
         )
 
-        # Return response
-        if hasattr(response, "text") and response.text:
-            return response.text.strip()
+        result = analyze_chart(image_bytes)
 
-        return (
-            "❌ هیچ شیکردنەوەیەک نەگەڕایەوە.\n"
-            "تکایە وێنەیەکی ڕوونتر بنێرە."
-        )
+        await update.message.reply_text(result)
 
     except Exception as e:
-        return (
-            "❌ هەڵە لە شیکردنەوەی چارت.\n\n"
-            f"{str(e)}"
+        logger.exception(e)
+        await update.message.reply_text(
+            f"❌ Error:\n{e}"
         )
+
+
+def main():
+    Config.validate()
+
+    app = (
+        Application.builder()
+        .token(Config.TELEGRAM_BOT_TOKEN)
+        .build()
+    )
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(
+        MessageHandler(filters.PHOTO, handle_photo)
+    )
+
+    logger.info("Bot Started...")
+
+    app.run_polling()
+
+
+if __name__ == "__main__":
+    main()
