@@ -1,3 +1,4 @@
+import logging
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -6,56 +7,53 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
+from openai import OpenAI
+from dotenv import load_dotenv
+import os
 
-from config import Config
-from analysis import analyze_chart
+# Load .env
+load_dotenv()
 
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 بەخێربێیت.\n\n"
-        "تکایە تەنها وێنەی TradingView بۆ XAUUSD (Gold) بنێرە."
+        "👋 سڵاو! بەخێربێیت بۆ Gold AI Bot.\n\n"
+        "هەر پرسیارێک بنووسە."
     )
 
+async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_message = update.message.text
 
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        photo = update.message.photo[-1]
+        response = client.responses.create(
+            model="gpt-5.5",
+            input=user_message,
+        )
 
-        telegram_file = await context.bot.get_file(photo.file_id)
-
-        image_bytes = await telegram_file.download_as_bytearray()
-
-        await update.message.reply_text("⏳ چاوەڕێبە... شیکردنەوەی چارت دەکرێت.")
-
-        result = analyze_chart(bytes(image_bytes))
-
-        await update.message.reply_text(result)
+        await update.message.reply_text(response.output_text)
 
     except Exception as e:
-        await update.message.reply_text(
-            f"❌ Error:\n{str(e)}"
-        )
-
+        await update.message.reply_text(f"❌ Error:\n{e}")
 
 def main():
-    app = Application.builder().token(
-        Config.TELEGRAM_BOT_TOKEN
-    ).build()
+    app = Application.builder().token(BOT_TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
-
     app.add_handler(
-        MessageHandler(
-            filters.PHOTO,
-            handle_photo,
-        )
+        MessageHandler(filters.TEXT & ~filters.COMMAND, chat)
     )
 
-    print("✅ Bot Started")
-
+    print("✅ Bot is running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
