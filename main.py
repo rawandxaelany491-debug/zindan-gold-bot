@@ -90,24 +90,23 @@ MM
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "پرسیارەکانت لەسەر SNRZ بنێرە.\n"
-        "نموونە: S، R، VS، PO2، RB، MM"
+        "نموونە: S، R، VS، VR، P، RB، MM"
     )
-    async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = update.message.text
 
     result = search_snrz(user_text)
 
     if isinstance(result, dict):
-
         image_name = result.get("image")
         text = result.get("text")
 
         if image_name:
-
             image_path = os.path.join("images", image_name)
 
             if os.path.exists(image_path):
-
                 await update.message.reply_photo(
                     photo=InputFile(image_path),
                     caption=text
@@ -121,7 +120,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-
     if not TOKEN:
         raise ValueError("TELEGRAM_BOT_TOKEN نەدۆزرایەوە.")
 
@@ -129,7 +127,6 @@ def main():
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-
     application.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
