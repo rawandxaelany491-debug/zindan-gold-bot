@@ -1,70 +1,38 @@
-import os
-import logging
-from dotenv import load_dotenv
-
-from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    MessageHandler,
-    ContextTypes,
-    filters,
-)
-
-from search import search_snrz
-
-load_dotenv()
-
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
-
-logger = logging.getLogger(__name__)
-
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 بەخێربێیت بۆ SNRZ Assistant Bot.\n\n"
-        "پرسیارەکانت دەربارەی ستراتیژی SNRZ بنێرە."
-    )
+    text = """
+👋 بەخێربێیت بۆ SNRZ Assistant Bot
 
+📚 من تەنها پرسیارەکانی ستراتیژی SNRZ وەڵام دەدەم.
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "نمونەی پرسیار:\n"
-        "• PO2 چییە؟\n"
-        "• RBS چییە؟\n"
-        "• Gap Strategy چییە؟"
-    )
+دەتوانیت دەربارەی ئەم بابەتانە پرسیار بکەیت:
 
+• Support (S)
+• Resistance (R)
+• Valid Support (VS)
+• Valid Resistance (VR)
+• Inversion VS
+• Inversion VR
+• RBS
+• SBR
+• SRR
+• RSS
+• PO2 (Power Of Second Touch)
+• PO2 Inversion
+• Liquidity Sweep
+• Liquidity Run
+• Pump Base Pump
+• Dump Base Dump
+• Gap Strategy
+• False Breakout Area
+• Fresh Zones
+• Trend
+• Trend Ranking
+• Timeframe Confirmation
+• Valid Zones
+• Zone Types
+• Money Management
 
-async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.text:
-        return
+✍️ پرسیارت لە کام بابەتە هەیە؟
+"""
 
-    answer = search_snrz(update.message.text)
-    await update.message.reply_text(answer)
-
-
-def main():
-    if not TOKEN:
-        raise ValueError("TELEGRAM_BOT_TOKEN not found!")
-
-    app = Application.builder().token(TOKEN).build()
-
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler)
-    )
-
-    print("✅ Bot Started...")
-
-    app.run_polling()
-
-
-if __name__ == "__main__":
-    main()
+    await update.message.reply_text(text)
