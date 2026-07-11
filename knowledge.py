@@ -1,133 +1,50 @@
-SNRZ_DATA = {
+"support": {
+    "image": "support.jpg",
+    "text": """
+📘 Support (S)
 
-    "support": """
-Support (S)
+━━━━━━━━━━━━━━
 
-ناوچەیەکە کە نرخ لێی بەرزدەبێتەوە.
-""",
+📌 پێناسە
 
-    "resistance": """
-Resistance (R)
+Support ناوچەیەکە کە نرخ لێی بەرزدەبێتەوە و کڕیارەکان چالاکتر دەبن.
 
-ناوچەیەکە کە نرخ لێی دادەبەزێت.
-""",
+━━━━━━━━━━━━━━
 
-    "vs": """
-Valid Support (VS)
+📌 چۆن دیاری دەکرێت؟
 
-Support ـێکی ڕاستەقینەیە.
-خاوەنی First Movement و Second Movement ـە.
-""",
+• شوێنی هەڵگەڕانەوەی نرخ.
+• باشترە لە Line Chart دیاری بکرێت.
+• دەبێت First Movement هەبێت.
 
-    "vr": """
-Valid Resistance (VR)
+━━━━━━━━━━━━━━
 
-Resistance ـێکی ڕاستەقینەیە.
-خاوەنی First Movement و Second Movement ـە.
-""",
+📌 لە SNRZ
 
-    "po2": """
-PO2 (Power Of Second Touch)
+Support بە تەنها سیگناڵی BUY نییە.
 
-دووەم بەهێزترین تۆپیکی SNRZ دوای Trend.
-""",
+دەبێت لەگەڵ:
 
-    "rbs": """
-Resistance Breakout To Support
+✅ Trend
+✅ Confirmation
+✅ Liquidity
 
-کاتێک Resistance دەشکێت،
-دەبێتە Support.
-""",
+بەکاربهێنرێت.
 
-    "sbr": """
-Support Breakout To Resistance
+━━━━━━━━━━━━━━
 
-کاتێک Support دەشکێت،
-دەبێتە Resistance.
-""",
+⚠️ هەڵەی باو
 
-    "srr": """
-Support Breakout 2 Resistance
+❌ تەنها Support ببینیت و Buy بکەیت.
 
-دوو Breakout + Pullback + Confirmation.
-""",
+✔ ڕاست:
 
-    "rss": """
-Resistance Breakout 2 Support
+Support + Confirmation + Trend
 
-دوو Breakout + Pullback + Confirmation.
-""",
+━━━━━━━━━━━━━━
 
-    "liquidity sweep": """
-Liquidity Sweep
+🖼️ نموونە:
 
-مارکێت بە Shadow
-Liquidity سووپ دەکات
-و دەگەڕێتەوە.
-""",
-
-    "liquidity run": """
-Liquidity Run
-
-مارکێت بە Full Body
-Zone دەبڕێت.
-""",
-
-    "gap": """
-Gap Strategy
-
-مارکێت زۆرجار دەگەڕێتەوە
-بۆ پڕکردنەوەی Gap.
-""",
-
-    "trend": """
-Trend Ranking
-
-1. Trend
-2. PO2
-3. PO2 Inversion
-4. VS / VR Inversion
-5. Gap
-6. Fresh VS / VR
-7. SBR / RBS
-""",
-
-    "timeframe": """
-Weekly → Daily → 4H
-
-Daily → 4H → 1H
-
-4H → 1H → 30M
-
-1H → 30M → 15M
-
-15M → 5M
-""",
-
-    "money management": """
-Money Management
-
-• سەرمایە بپارێزە.
-• Target1 کە گەیشت، Capital دەرکێشە.
-• بە قازانج Trade بکە.
-""",
-
-    "snrz": """
-SNRZ Strategy
-
-Support
-Resistance
-VS
-VR
-PO2
-RBS
-SBR
-SRR
-RSS
-Liquidity
-Gap
-Trend
-Timeframe
-Money Management
+(وێنەی خوارەوە)
 """
-}
+},
