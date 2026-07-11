@@ -1,3 +1,6 @@
+from telegram import InputFile
+import os
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = """
 👋 بەخێربێیت بۆ SNRZ Assistant Bot
