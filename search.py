@@ -1,68 +1,21 @@
 from knowledge import SNRZ_DATA
 
-ALIASES = {
-    "s": "support",
-    "support": "support",
-    "پاڵپشتی": "support",
-    "سەپۆرت": "support",
-
-    "r": "resistance",
-    "resistance": "resistance",
-    "بەرگری": "resistance",
-    "ڕیزستانس": "resistance",
-
-    "vs": "vs",
-    "vr": "vr",
-
-    "ivs": "ivs",
-    "ivr": "ivr",
-
-    "p": "po2",
-    "po2": "po2",
-
-    "pi": "po2 inversion",
-
-    "rb": "rbs",
-    "rbs": "rbs",
-
-    "sb": "sbr",
-    "sbr": "sbr",
-
-    "sr": "srr",
-    "srr": "srr",
-
-    "rs": "rss",
-    "rss": "rss",
-
-    "ls": "liquidity sweep",
-    "lr": "liquidity run",
-
-    "pbp": "pump base pump",
-    "dbd": "dump base dump",
-
-    "g": "gap",
-    "gap": "gap",
-
-    "fb": "false breakout",
-
-    "t": "trend",
-
-    "tf": "timeframe",
-
-    "mm": "money management",
-}
-
 
 def search_snrz(question):
-    q = question.strip().lower()
+    question = question.strip().lower()
 
-    key = ALIASES.get(q)
+    for topic in SNRZ_DATA.values():
 
-    if key and key in SNRZ_DATA:
-        return SNRZ_DATA[key]
+        keywords = topic.get("keywords", [])
 
-    return (
-        "❌ ئەم بابەتە نەدۆزرایەوە.\n\n"
-        "تکایە یەکێک لەم کورتکراوانە بنێرە:\n"
-        "S, R, VS, VR, P, RB, SB, LS, G, T, TF, MM"
-    )
+        for keyword in keywords:
+            if question == keyword.lower():
+                return {
+                    "text": topic["text"],
+                    "image": topic.get("image")
+                }
+
+    return {
+        "text": "❌ ببورە، ئەم بابەتە لە زانیارییەکانی SNRZ نەدۆزرایەوە.",
+        "image": None
+    }
