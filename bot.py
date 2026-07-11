@@ -1,4 +1,7 @@
+import os
 import logging
+from dotenv import load_dotenv
+
 from telegram import Update
 from telegram.ext import (
     Application,
@@ -7,53 +10,67 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-from openai import OpenAI
-from dotenv import load_dotenv
-import os
 
-# Load .env
+from search import search_snrz
+
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO,
 )
 
+logger = logging.getLogger(__name__)
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "👋 سڵاو! بەخێربێیت بۆ Gold AI Bot.\n\n"
-        "هەر پرسیارێک بنووسە."
+    text = (
+        "👋 بەخێربێیت بۆ SNRZ Assistant Bot\n\n"
+        "📚 ئەم بۆتە تەنها پرسیارەکانی ستراتیژی SNRZ وەڵام دەدات.\n\n"
+        "نمونە:\n"
+        "• PO2 چییە؟\n"
+        "• RBS چییە؟\n"
+        "• Liquidity Sweep چییە؟\n"
+        "• Gap Strategy چییە؟"
     )
 
-async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_message = update.message.text
+    await update.message.reply_text(text)
 
-    try:
-        response = client.responses.create(
-            model="gpt-5.5",
-            input=user_message,
-        )
 
-        await update.message.reply_text(response.output_text)
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "پرسیارەکانت بە زمانی کوردی بنێرە.\n"
+        "ئەگەر لە زانیارییەکانی SNRZ هەبێت، بۆتەکە وەڵام دەدات."
+    )
 
-    except Exception as e:
-        await update.message.reply_text(f"❌ Error:\n{e}")
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+
+    answer = search_snrz(user_text)
+
+    await update.message.reply_text(answer)
+
 
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    application = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, chat)
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+
+    application.add_handler(
+        MessageHandler(
+            filters.TEXT & ~filters.COMMAND,
+            message_handler,
+        )
     )
 
-    print("✅ Bot is running...")
-    app.run_polling()
+    print("Bot Started...")
+
+    application.run_polling()
+
 
 if __name__ == "__main__":
     main()
