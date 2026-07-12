@@ -1,1 +1,86 @@
-
+{
+  "version": "1.0",
+  "snrz": {
+    "support": {
+      "symbol": "S",
+      "definition": "ھێڵی پاڵپشتی - ئەو شوێنەی کە نرخ بەرز دەکاتەوە",
+      "kurdish": "سەپۆرت"
+    },
+    "resistance": {
+      "symbol": "R",
+      "definition": "ھێڵی بەرکری - ئەو شوێنەی کە نرخ دابەزێنێت",
+      "kurdish": "ڕیسرستانس"
+    },
+    "sbr": {
+      "symbol": "SBR",
+      "definition": "Support Breakout to Resistance - سەپۆرت شکێنراوە بۆ ڕیسرستانس",
+      "signal": "SELL",
+      "kurdish": "سەپۆرت شکێنراوە بۆ ڕیسرستانس"
+    },
+    "rbs": {
+      "symbol": "RBS",
+      "definition": "Resistance Breakout to Support - ڕیسرستانس شکێنراوە بۆ سەپۆرت",
+      "signal": "BUY",
+      "kurdish": "ڕیسرستانس شکێنراوە بۆ سەپۆرت"
+    },
+    "vs": {
+      "symbol": "VS",
+      "definition": "Valid Support - سەپۆرتی پەسەندکراو",
+      "signal": "BUY",
+      "kurdish": "ڤالید سەپۆرت"
+    },
+    "vr": {
+      "symbol": "VR",
+      "definition": "Valid Resistance - ڕیسرستانسی پەسەندکراو",
+      "signal": "SELL",
+      "kurdish": "ڤالید ڕیسرستانس"
+    },
+    "ivs": {
+      "symbol": "IVS",
+      "definition": "Inversion Valid Support",
+      "signal": "SELL",
+      "kurdish": "ئینڤێرژنی ڤالید سەپۆرت"
+    },
+    "ivr": {
+      "symbol": "IVR",
+      "definition": "Inversion Valid Resistance",
+      "signal": "BUY",
+      "kurdish": "ئینڤێرژنی ڤالید ڕیسرستانس"
+    },
+    "po2": {
+      "symbol": "PO2",
+      "definition": "Power Of Second Touch - دووەم تەج",
+      "signal": "BOTH",
+      "kurdish": "پاوەر ئۆف سێکەند تاچ"
+    },
+    "srr": {
+      "symbol": "SRR",
+      "definition": "Support Breakout 2 Resistance",
+      "signal": "SELL",
+      "kurdish": "سەپۆرت شکێنراوە ٢ ڕیسرستانس"
+    },
+    "rss": {
+      "symbol": "RSS",
+      "definition": "Resistance Breakout 2 Support",
+      "signal": "BUY",
+      "kurdish": "ڕیسرستانس شکێنراوە ٢ سەپۆرت"
+    },
+    "gap": {
+      "symbol": "GAP",
+      "definition": "GAP Strategy - ستراتیژی بۆشایی",
+      "signal": "BOTH",
+      "kurdish": "بۆشایی"
+    }
+  },
+  "timeframes": {
+    "zone_analysis": ["1w", "1d", "4h", "1h"],
+    "confirmation": ["15m", "5m", "1m"],
+    "target_1": "5m",
+    "target_2": "1h"
+  },
+  "risk_management": {
+    "risk_per_trade": "1-2%",
+    "risk_reward": "1:2",
+    "break_even": true
+  }
+}
