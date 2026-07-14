@@ -6,7 +6,7 @@
 بە /strategy یەکێکیان هەڵبژێرێت. دەتوانێت وەڵامی پرسیار بداتەوە، شیکاری
 چارت (وێنە، تاک یان چەند تایمفریم بەیەکەوە) بکات، فەرهەنگی کورتکراوەکان
 نیشان بدات، مێژووی سیگناڵەکان بپارێزێت، و ئاگادارکردنەوەی ڕۆژانە بنێرێت.
-(بەکارهێنانی Google Gemini API)
+(بەکارهێنانی Google Gen AI SDK ـی نوێ و فەرمی: google-genai)
 """
 
 import logging
@@ -25,7 +25,8 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from strategies import STRATEGIES, DEFAULT_STRATEGY
 from access_control import allow_user, deny_user, is_allowed, list_allowed
@@ -47,14 +48,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# {strategy_key: genai.GenerativeModel}  — لە main() پڕدەکرێت
-gemini_models: dict[str, "genai.GenerativeModel"] = {}
+genai_client: "genai.Client" = None  # لە main() پڕدەکرێت
 
 # ستراتیژی چالاکی هەر بەکارهێنەرێک {user_id: strategy_key}
 user_strategy: dict[int, str] = {}
 
 # بیرگەی گفتوگۆ بۆ هەر بەکارهێنەرێک، جیاکراوە بەپێی ستراتیژی
-# {(user_id, strategy_key): [{"role": "user"/"model", "parts": [text]}, ...]}
+# {(user_id, strategy_key): [types.Content, ...]}
 conversation_history: dict[tuple, list] = {}
 MAX_HISTORY_MESSAGES = 10
 
@@ -99,6 +99,17 @@ def _strategy_keyboard() -> InlineKeyboardMarkup:
         for key, info in STRATEGIES.items()
     ]
     return InlineKeyboardMarkup(buttons)
+
+
+def _generate(strategy_key: str, contents: list):
+    """ناردنی contents بۆ Gemini بەپێی system prompt ی ستراتیژیی دیاریکراو."""
+    return genai_client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=STRATEGIES[strategy_key]["system_prompt"],
+        ),
+    )
 
 
 # ───────────────────────── فەرمانەکان ─────────────────────────
@@ -287,17 +298,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     history_key = (user_id, strategy_key)
     history = conversation_history.get(history_key, [])
-    history.append({"role": "user", "parts": [user_text]})
+    history.append(types.Content(role="user", parts=[types.Part(text=user_text)]))
 
     try:
-        response = gemini_models[strategy_key].generate_content(history)
+        response = _generate(strategy_key, history)
         reply_text = response.text
     except Exception as e:
         logger.exception("Gemini API error")
         await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە Gemini: {e}")
         return
 
-    history.append({"role": "model", "parts": [reply_text]})
+    history.append(types.Content(role="model", parts=[types.Part(text=reply_text)]))
     conversation_history[history_key] = history
     _trim_history(history_key)
 
@@ -308,7 +319,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def _analyze_and_reply(chat_id: int, user_id: int, strategy_key: str, contents: list, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        response = gemini_models[strategy_key].generate_content(contents)
+        response = _generate(strategy_key, contents)
         reply_text = response.text
     except Exception as e:
         logger.exception("Gemini API vision error")
@@ -354,7 +365,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     caption = update.message.caption or "تکایە ئەم چارتە شیکاری بکە."
-    contents = [caption, {"mime_type": "image/jpeg", "data": photo_bytes}]
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part(text=caption),
+                types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"),
+            ],
+        )
+    ]
     await _analyze_and_reply(update.effective_chat.id, user_id, strategy_key, contents, context)
 
 
@@ -368,9 +387,10 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
         data["caption"]
         or "ئەمانە چەند تایمفریمی هەمان چارتن. تکایە شیکاریی Multi-Timeframe بکە."
     )
-    contents = [caption] + [
-        {"mime_type": "image/jpeg", "data": p} for p in data["photos"]
+    parts = [types.Part(text=caption)] + [
+        types.Part.from_bytes(data=p, mime_type="image/jpeg") for p in data["photos"]
     ]
+    contents = [types.Content(role="user", parts=parts)]
     await _analyze_and_reply(data["chat_id"], data["user_id"], data["strategy_key"], contents, context)
 
 
@@ -393,6 +413,8 @@ async def _send_daily_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def main() -> None:
+    global genai_client
+
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN لە .env دیاری نەکراوە.")
     if not GEMINI_API_KEY:
@@ -400,12 +422,7 @@ def main() -> None:
     if not OWNER_TELEGRAM_ID:
         raise RuntimeError("OWNER_TELEGRAM_ID لە .env دیاری نەکراوە.")
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    for key, info in STRATEGIES.items():
-        gemini_models[key] = genai.GenerativeModel(
-            model_name=GEMINI_MODEL,
-            system_instruction=info["system_prompt"],
-        )
+    genai_client = genai.Client(api_key=GEMINI_API_KEY)
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
