@@ -2,12 +2,16 @@
 """
 بۆتی تلیگرامی SNRZ Strategy Assistant.
 تەنها بۆ خاوەنی بۆتەکە و ئەو کەسانەی خاوەنەکە ڕێگەی پێداون کاردەکات.
-دەتوانێت وەڵامی پرسیار بداتەوە و شیکاری چارت (وێنە) بکات، هەردووکیان
+دەتوانێت وەڵامی پرسیار بداتەوە، شیکاری چارت (وێنە، تاک یان چەند
+تایمفریم بەیەکەوە) بکات، فەرهەنگی کورتکراوەکان نیشان بدات، مێژووی
+سیگناڵەکان بپارێزێت، و ئاگادارکردنەوەی ڕۆژانە بنێرێت.
 تەنها بەپێی ستراتیژی SNRZ. (بەکارهێنانی Google Gemini API)
 """
 
 import logging
 import os
+from datetime import time as dtime
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from telegram import Update
@@ -21,15 +25,19 @@ from telegram.ext import (
 )
 import google.generativeai as genai
 
-from strategies import SNRZ_SYSTEM_PROMPT
+from strategies import SNRZ_SYSTEM_PROMPT, GLOSSARY
 from access_control import allow_user, deny_user, is_allowed, list_allowed
+import journal
 
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OWNER_TELEGRAM_ID = int(os.getenv("OWNER_TELEGRAM_ID", "0"))
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+TIMEZONE = os.getenv("TIMEZONE", "Asia/Baghdad")
+DAILY_REMINDER_HOUR = int(os.getenv("DAILY_REMINDER_HOUR", "9"))
+DAILY_REMINDER_MINUTE = int(os.getenv("DAILY_REMINDER_MINUTE", "0"))
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -43,6 +51,11 @@ gemini_model = None  # لە main() دروست دەکرێت دوای پشکنین
 # {user_id: [{"role": "user"/"model", "parts": [text]}, ...]}
 conversation_history: dict[int, list] = {}
 MAX_HISTORY_MESSAGES = 10  # چەند پەیامی دوایی بیر بهێنرێتەوە
+
+# بیرگەی کۆمەڵە وێنەکان (بۆ چەند تایمفریمی نێردراو بەیەکەوە/album)
+# {media_group_id: {"photos": [bytes,...], "caption": str|None, "user_id":, "chat_id":}}
+media_groups: dict[str, dict] = {}
+MEDIA_GROUP_DELAY_SECONDS = 2.0
 
 
 def _check_access(user_id: int) -> bool:
@@ -65,6 +78,12 @@ def _trim_history(user_id: int) -> None:
         conversation_history[user_id] = history[-MAX_HISTORY_MESSAGES:]
 
 
+def _log_signal_from_reply(user_id: int, reply_text: str) -> None:
+    signal = journal.extract_signal(reply_text)
+    if signal:
+        journal.log_signal(user_id, signal)
+
+
 # ───────────────────────── فەرمانەکان ─────────────────────────
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -82,9 +101,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "🦁 بەخێربێیت بۆ بۆتی ستراتیژی *SNRZ*!\n\n"
         "دەتوانیت:\n"
         "• هەر پرسیارێکت هەبێت لەسەر ستراتیژی SNRZ بمپرسە\n"
-        "• وێنەی چارتێک بنێرە تاکو شیکاری بۆ بکەم بەپێی SNRZ\n\n"
+        "• وێنەی چارتێک (یان چەند تایمفریم بەیەکەوە وەک album) بنێرە "
+        "تاکو شیکاری بۆ بکەم بەپێی SNRZ\n\n"
         "فەرمانەکان:\n"
         "/reset — پاککردنەوەی مێژووی گفتوگۆ\n"
+        "/glossary — فەرهەنگی کورتکراوەکانی SNRZ\n"
+        "/journal — مێژووی سیگناڵەکانی خۆت\n"
         "/id — بینینی ئایدی تلیگرامی خۆت",
         parse_mode="Markdown",
     )
@@ -101,6 +123,52 @@ async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         return
     conversation_history.pop(user_id, None)
     await update.message.reply_text("✅ مێژووی گفتوگۆ پاک کرایەوە.")
+
+
+async def glossary_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _check_access(user_id):
+        await _deny_message(update)
+        return
+
+    lines = ["📖 *فەرهەنگی کورتکراوەکانی SNRZ*\n"]
+    for term, definition in GLOSSARY.items():
+        lines.append(f"*{term}*\n{definition}\n")
+    text = "\n".join(lines)
+
+    # تلیگرام سنووری ٤٠٩٦ پیت هەیە بۆ هەر پەیامێک، بۆیە پارچە پارچەی دەکەین
+    max_len = 3500
+    for i in range(0, len(text), max_len):
+        await update.message.reply_text(text[i : i + max_len], parse_mode="Markdown")
+
+
+async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _check_access(user_id):
+        await _deny_message(update)
+        return
+
+    if context.args and context.args[0] == "all" and user_id == OWNER_TELEGRAM_ID:
+        stats = journal.get_all_stats()
+        title = "📊 مێژووی هەموو سیگناڵەکان (هەموو بەکارهێنەران)"
+    else:
+        stats = journal.get_user_stats(user_id)
+        title = "📊 مێژووی سیگناڵەکانی تۆ"
+
+    total = sum(stats.values())
+    if total == 0:
+        await update.message.reply_text("هێشتا هیچ سیگناڵێک تۆمار نەکراوە.")
+        return
+
+    text = (
+        f"{title}\n\n"
+        f"🟢 BUY: {stats['BUY']}\n"
+        f"🔴 SELL: {stats['SELL']}\n"
+        f"🟡 WAIT: {stats['WAIT']}\n"
+        f"━━━━━━━━━\n"
+        f"کۆی گشتی: {total}"
+    )
+    await update.message.reply_text(text)
 
 
 async def allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -196,6 +264,20 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # ───────────────────────── وێنە (شیکاری چارت) ─────────────────────────
 
+async def _analyze_and_reply(chat_id: int, user_id: int, contents: list, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """ناردنی وێنە(کان) بۆ Gemini، وەڵامدانەوە، و تۆمارکردنی سیگناڵ."""
+    try:
+        response = gemini_model.generate_content(contents)
+        reply_text = response.text
+    except Exception as e:
+        logger.exception("Gemini API vision error")
+        await context.bot.send_message(chat_id=chat_id, text=f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
+        return
+
+    _log_signal_from_reply(user_id, reply_text)
+    await context.bot.send_message(chat_id=chat_id, text=reply_text)
+
+
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if not _check_access(user_id):
@@ -208,19 +290,68 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     file = await context.bot.get_file(photo.file_id)
     photo_bytes = bytes(await file.download_as_bytearray())
 
-    caption = update.message.caption or "تکایە ئەم چارتە بەپێی ستراتیژی SNRZ شیکاری بکە."
-
-    try:
-        response = gemini_model.generate_content(
-            [caption, {"mime_type": "image/jpeg", "data": photo_bytes}]
-        )
-        reply_text = response.text
-    except Exception as e:
-        logger.exception("Gemini API vision error")
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
+    # ئەگەر ئەم وێنەیە بەشێکە لە album (چەند تایمفریم بەیەکەوە نێردراوە)
+    group_id = update.message.media_group_id
+    if group_id:
+        if group_id not in media_groups:
+            media_groups[group_id] = {
+                "photos": [],
+                "caption": None,
+                "user_id": user_id,
+                "chat_id": update.effective_chat.id,
+            }
+            context.job_queue.run_once(
+                _process_media_group,
+                when=MEDIA_GROUP_DELAY_SECONDS,
+                data=group_id,
+                name=group_id,
+            )
+        media_groups[group_id]["photos"].append(photo_bytes)
+        if update.message.caption:
+            media_groups[group_id]["caption"] = update.message.caption
         return
 
-    await update.message.reply_text(reply_text)
+    caption = update.message.caption or "تکایە ئەم چارتە بەپێی ستراتیژی SNRZ شیکاری بکە."
+    contents = [caption, {"mime_type": "image/jpeg", "data": photo_bytes}]
+    await _analyze_and_reply(update.effective_chat.id, user_id, contents, context)
+
+
+async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """کارپێکردن دوای وەرگرتنی هەموو وێنەکانی album (چەند تایمفریم)."""
+    group_id = context.job.data
+    data = media_groups.pop(group_id, None)
+    if not data or not data["photos"]:
+        return
+
+    caption = (
+        data["caption"]
+        or "ئەمانە چەند تایمفریمی هەمان چارتن. تکایە شیکاریی Multi-Timeframe "
+        "بەپێی ستراتیژی SNRZ بکە: یەکەم لە تایمفریمی شیکاری وردببەوە، "
+        "دواتر بڕوانە تایمفریمی Confirmation."
+    )
+    contents = [caption] + [
+        {"mime_type": "image/jpeg", "data": p} for p in data["photos"]
+    ]
+    await _analyze_and_reply(data["chat_id"], data["user_id"], contents, context)
+
+
+# ───────────────────────── ئاگادارکردنەوەی ڕۆژانە ─────────────────────────
+
+async def _send_daily_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
+    recipients = list_allowed() + [OWNER_TELEGRAM_ID]
+    text = (
+        "🌅 بیرخستنەوەی ڕۆژانە — SNRZ\n\n"
+        "کاتی شیکاریکردنی چارتەکانتە! پێش دەستپێکردن بیر لەمانە بکەرەوە:\n"
+        "• تایمفریمی شیکاری (Analysis) و Confirmation بەپێی خشتەکە دیاری بکە\n"
+        "• ئاگاداری False Breakout Area بە\n"
+        "• هەرگیز لە دەرەوەی توانای دارایی خۆت مامەڵە مەکە\n\n"
+        "وێنەی چارتێک بنێرە بۆم هەر کاتێک ئامادەیت بۆ شیکاریکردن. 🦁"
+    )
+    for uid in recipients:
+        try:
+            await context.bot.send_message(chat_id=uid, text=text)
+        except Exception:
+            logger.warning("Could not send daily reminder to %s", uid)
 
 
 def main() -> None:
@@ -244,11 +375,25 @@ def main() -> None:
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("id", id_command))
     app.add_handler(CommandHandler("reset", reset_command))
+    app.add_handler(CommandHandler("glossary", glossary_command))
+    app.add_handler(CommandHandler("journal", journal_command))
     app.add_handler(CommandHandler("allow", allow_command))
     app.add_handler(CommandHandler("deny", deny_command))
     app.add_handler(CommandHandler("users", users_command))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
+    if app.job_queue is not None:
+        app.job_queue.run_daily(
+            _send_daily_reminder,
+            time=dtime(hour=DAILY_REMINDER_HOUR, minute=DAILY_REMINDER_MINUTE, tzinfo=ZoneInfo(TIMEZONE)),
+            name="daily_reminder",
+        )
+    else:
+        logger.warning(
+            "JobQueue بەردەست نییە — پاکیجی python-telegram-bot[job-queue] دابمەزرێنە "
+            "بۆ چالاککردنی ئاگادارکردنەوەی ڕۆژانە."
+        )
 
     logger.info("بۆتی SNRZ دەستیپێکرد...")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
