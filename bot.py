@@ -3,10 +3,9 @@
 بۆتی تلیگرامی SNRZ Strategy Assistant.
 تەنها بۆ خاوەنی بۆتەکە و ئەو کەسانەی خاوەنەکە ڕێگەی پێداون کاردەکات.
 دەتوانێت وەڵامی پرسیار بداتەوە و شیکاری چارت (وێنە) بکات، هەردووکیان
-تەنها بەپێی ستراتیژی SNRZ. (بەکارهێنانی OpenAI API)
+تەنها بەپێی ستراتیژی SNRZ. (بەکارهێنانی Google Gemini API)
 """
 
-import base64
 import logging
 import os
 
@@ -20,7 +19,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from openai import OpenAI
+import google.generativeai as genai
 
 from strategies import SNRZ_SYSTEM_PROMPT
 from access_control import allow_user, deny_user, is_allowed, list_allowed
@@ -28,9 +27,9 @@ from access_control import allow_user, deny_user, is_allowed, list_allowed
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 OWNER_TELEGRAM_ID = int(os.getenv("OWNER_TELEGRAM_ID", "0"))
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -38,10 +37,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+gemini_model = None  # لە main() دروست دەکرێت دوای پشکنینی کلیلەکە
 
 # بیرگەی گفتوگۆ بۆ هەر بەکارهێنەرێک (تەنها لە کاتی کارپێکردنی بۆت، لە مێمۆری)
-# {user_id: [{"role": "user"/"assistant", "content": ...}, ...]}
+# {user_id: [{"role": "user"/"model", "parts": [text]}, ...]}
 conversation_history: dict[int, list] = {}
 MAX_HISTORY_MESSAGES = 10  # چەند پەیامی دوایی بیر بهێنرێتەوە
 
@@ -178,23 +177,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
     history = conversation_history.get(user_id, [])
-    history.append({"role": "user", "content": user_text})
-
-    messages = [{"role": "system", "content": SNRZ_SYSTEM_PROMPT}] + history
+    history.append({"role": "user", "parts": [user_text]})
 
     try:
-        response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
-            max_tokens=1500,
-            messages=messages,
-        )
-        reply_text = response.choices[0].message.content
+        response = gemini_model.generate_content(history)
+        reply_text = response.text
     except Exception as e:
-        logger.exception("OpenAI API error")
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە OpenAI: {e}")
+        logger.exception("Gemini API error")
+        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە Gemini: {e}")
         return
 
-    history.append({"role": "assistant", "content": reply_text})
+    history.append({"role": "model", "parts": [reply_text]})
     conversation_history[user_id] = history
     _trim_history(user_id)
 
@@ -213,34 +206,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     photo = update.message.photo[-1]  # هەرزاترین کوالیتی
     file = await context.bot.get_file(photo.file_id)
-    photo_bytes = await file.download_as_bytearray()
-    base64_image = base64.b64encode(photo_bytes).decode("utf-8")
+    photo_bytes = bytes(await file.download_as_bytearray())
 
     caption = update.message.caption or "تکایە ئەم چارتە بەپێی ستراتیژی SNRZ شیکاری بکە."
 
     try:
-        response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
-            max_tokens=1500,
-            messages=[
-                {"role": "system", "content": SNRZ_SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": caption},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{base64_image}"
-                            },
-                        },
-                    ],
-                },
-            ],
+        response = gemini_model.generate_content(
+            [caption, {"mime_type": "image/jpeg", "data": photo_bytes}]
         )
-        reply_text = response.choices[0].message.content
+        reply_text = response.text
     except Exception as e:
-        logger.exception("OpenAI API vision error")
+        logger.exception("Gemini API vision error")
         await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
         return
 
@@ -248,12 +224,20 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 def main() -> None:
+    global gemini_model
+
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN لە .env دیاری نەکراوە.")
-    if not OPENAI_API_KEY:
-        raise RuntimeError("OPENAI_API_KEY لە .env دیاری نەکراوە.")
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY لە .env دیاری نەکراوە.")
     if not OWNER_TELEGRAM_ID:
         raise RuntimeError("OWNER_TELEGRAM_ID لە .env دیاری نەکراوە.")
+
+    genai.configure(api_key=GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        system_instruction=SNRZ_SYSTEM_PROMPT,
+    )
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
