@@ -3,7 +3,7 @@
 بۆتی تلیگرامی SNRZ Strategy Assistant.
 تەنها بۆ خاوەنی بۆتەکە و ئەو کەسانەی خاوەنەکە ڕێگەی پێداون کاردەکات.
 دەتوانێت وەڵامی پرسیار بداتەوە و شیکاری چارت (وێنە) بکات، هەردووکیان
-تەنها بەپێی ستراتیژی SNRZ.
+تەنها بەپێی ستراتیژی SNRZ. (بەکارهێنانی OpenAI API)
 """
 
 import base64
@@ -20,7 +20,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from anthropic import Anthropic
+from openai import OpenAI
 
 from strategies import SNRZ_SYSTEM_PROMPT
 from access_control import allow_user, deny_user, is_allowed, list_allowed
@@ -28,9 +28,9 @@ from access_control import allow_user, deny_user, is_allowed, list_allowed
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OWNER_TELEGRAM_ID = int(os.getenv("OWNER_TELEGRAM_ID", "0"))
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -38,7 +38,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 # بیرگەی گفتوگۆ بۆ هەر بەکارهێنەرێک (تەنها لە کاتی کارپێکردنی بۆت، لە مێمۆری)
 # {user_id: [{"role": "user"/"assistant", "content": ...}, ...]}
@@ -51,12 +51,11 @@ def _check_access(user_id: int) -> bool:
 
 
 async def _deny_message(update: Update) -> None:
+    user_id = update.effective_user.id
     await update.message.reply_text(
-        "⛔️ ببورە، تۆ ڕێگەت پێنەدراوە بۆ بەکارهێنانی ئەم بۆتە.\n"
-        "ئایدی تۆ: `{}`\n"
-        "تکایە پەیوەندی بە خاوەنی بۆتەکەوە بکە بۆ وەرگرتنی ڕێگە.".format(
-            "{user_id}"
-        ),
+        f"⛔️ ببورە، تۆ ڕێگەت پێنەدراوە بۆ بەکارهێنانی ئەم بۆتە.\n"
+        f"ئایدی تۆ: `{user_id}`\n"
+        f"تکایە پەیوەندی بە خاوەنی بۆتەکەوە بکە بۆ وەرگرتنی ڕێگە.",
         parse_mode="Markdown",
     )
 
@@ -181,17 +180,18 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     history = conversation_history.get(user_id, [])
     history.append({"role": "user", "content": user_text})
 
+    messages = [{"role": "system", "content": SNRZ_SYSTEM_PROMPT}] + history
+
     try:
-        response = claude_client.messages.create(
-            model=CLAUDE_MODEL,
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
             max_tokens=1500,
-            system=SNRZ_SYSTEM_PROMPT,
-            messages=history,
+            messages=messages,
         )
-        reply_text = "".join(block.text for block in response.content if block.type == "text")
+        reply_text = response.choices[0].message.content
     except Exception as e:
-        logger.exception("Claude API error")
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە Claude: {e}")
+        logger.exception("OpenAI API error")
+        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە OpenAI: {e}")
         return
 
     history.append({"role": "assistant", "content": reply_text})
@@ -219,30 +219,28 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     caption = update.message.caption or "تکایە ئەم چارتە بەپێی ستراتیژی SNRZ شیکاری بکە."
 
     try:
-        response = claude_client.messages.create(
-            model=CLAUDE_MODEL,
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
             max_tokens=1500,
-            system=SNRZ_SYSTEM_PROMPT,
             messages=[
+                {"role": "system", "content": SNRZ_SYSTEM_PROMPT},
                 {
                     "role": "user",
                     "content": [
+                        {"type": "text", "text": caption},
                         {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/jpeg",
-                                "data": base64_image,
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
                             },
                         },
-                        {"type": "text", "text": caption},
                     ],
-                }
+                },
             ],
         )
-        reply_text = "".join(block.text for block in response.content if block.type == "text")
+        reply_text = response.choices[0].message.content
     except Exception as e:
-        logger.exception("Claude API vision error")
+        logger.exception("OpenAI API vision error")
         await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
         return
 
@@ -252,8 +250,8 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN لە .env دیاری نەکراوە.")
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY لە .env دیاری نەکراوە.")
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY لە .env دیاری نەکراوە.")
     if not OWNER_TELEGRAM_ID:
         raise RuntimeError("OWNER_TELEGRAM_ID لە .env دیاری نەکراوە.")
 
