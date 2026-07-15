@@ -31,6 +31,7 @@ from anthropic import Anthropic
 from strategies import STRATEGIES, DEFAULT_STRATEGY
 from access_control import allow_user, deny_user, is_allowed, list_allowed
 import journal
+import rate_limit
 
 load_dotenv()
 
@@ -42,6 +43,7 @@ CLAUDE_MAX_TOKENS = int(os.getenv("CLAUDE_MAX_TOKENS", "1500"))
 TIMEZONE = os.getenv("TIMEZONE", "Asia/Baghdad")
 DAILY_REMINDER_HOUR = int(os.getenv("DAILY_REMINDER_HOUR", "9"))
 DAILY_REMINDER_MINUTE = int(os.getenv("DAILY_REMINDER_MINUTE", "0"))
+DAILY_PHOTO_LIMIT = int(os.getenv("DAILY_PHOTO_LIMIT", "10"))
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -317,16 +319,17 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # ───────────────────────── وێنە (شیکاری چارت) ─────────────────────────
 
-async def _analyze_and_reply(chat_id: int, user_id: int, strategy_key: str, messages: list, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _analyze_and_reply(chat_id: int, user_id: int, strategy_key: str, messages: list, context: ContextTypes.DEFAULT_TYPE) -> bool:
     try:
         reply_text = _generate(strategy_key, messages)
     except Exception as e:
         logger.exception("Claude API vision error")
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
-        return
+        return False
 
     _log_signal_from_reply(user_id, reply_text)
     await context.bot.send_message(chat_id=chat_id, text=reply_text)
+    return True
 
 
 def _image_block(photo_bytes: bytes) -> dict:
@@ -338,6 +341,24 @@ def _image_block(photo_bytes: bytes) -> dict:
             "data": base64.b64encode(photo_bytes).decode("utf-8"),
         },
     }
+
+
+def _remaining_photo_quota(user_id: int) -> int:
+    if user_id == OWNER_TELEGRAM_ID:
+        return DAILY_PHOTO_LIMIT  # سنوور بۆ خاوەن بەکارناهێنرێت، ئەمە تەنها بۆ پەیامە
+    return max(0, DAILY_PHOTO_LIMIT - rate_limit.get_today_count(user_id))
+
+
+async def _limit_reached_message(chat_id: int, context: ContextTypes.DEFAULT_TYPE, needed: int, remaining: int) -> None:
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=(
+            f"⏳ سنووری ڕۆژانەت بۆ شیکاریکردنی وێنە بەسەرچووە یان تەواو نییە بۆ ئەم داواکارییە.\n"
+            f"سنووری ڕۆژانە: {DAILY_PHOTO_LIMIT} وێنە | ماوەتەوە: {remaining} | پێویستە: {needed}\n\n"
+            f"دەتوانیت بەردەوام پرسیاری نووسراو بکەیت، بەڵام شیکاریکردنی وێنەی زیاتر بۆ ئەمڕۆ "
+            f"بەردەست نییە. سبەی دووبارە دەکرێتەوە. 🌙"
+        ),
+    )
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -374,6 +395,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             media_groups[group_id]["caption"] = update.message.caption
         return
 
+    if user_id != OWNER_TELEGRAM_ID and not rate_limit.can_analyze(user_id, DAILY_PHOTO_LIMIT, extra=1):
+        await _limit_reached_message(update.effective_chat.id, context, needed=1, remaining=_remaining_photo_quota(user_id))
+        return
+
     caption = update.message.caption or "تکایە ئەم چارتە شیکاری بکە."
     messages = [
         {
@@ -381,7 +406,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             "content": [_image_block(photo_bytes), {"type": "text", "text": caption}],
         }
     ]
-    await _analyze_and_reply(update.effective_chat.id, user_id, strategy_key, messages, context)
+    success = await _analyze_and_reply(update.effective_chat.id, user_id, strategy_key, messages, context)
+    if success and user_id != OWNER_TELEGRAM_ID:
+        rate_limit.record_usage(user_id, 1)
 
 
 async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -390,13 +417,26 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
     if not data or not data["photos"]:
         return
 
+    user_id = data["user_id"]
+    photo_count = len(data["photos"])
+
+    if user_id != OWNER_TELEGRAM_ID and not rate_limit.can_analyze(user_id, DAILY_PHOTO_LIMIT, extra=photo_count):
+        await _limit_reached_message(
+            data["chat_id"], context, needed=photo_count, remaining=_remaining_photo_quota(user_id)
+        )
+        return
+
     caption = (
         data["caption"]
         or "ئەمانە چەند تایمفریمی هەمان چارتن. تکایە شیکاریی Multi-Timeframe بکە."
     )
     content = [_image_block(p) for p in data["photos"]] + [{"type": "text", "text": caption}]
     messages = [{"role": "user", "content": content}]
-    await _analyze_and_reply(data["chat_id"], data["user_id"], data["strategy_key"], messages, context)
+    success = await _analyze_and_reply(data["chat_id"], user_id, data["strategy_key"], messages, context)
+    if success and user_id != OWNER_TELEGRAM_ID:
+        rate_limit.record_usage(user_id, photo_count)
+
+
 
 
 # ───────────────────────── ئاگادارکردنەوەی ڕۆژانە ─────────────────────────
