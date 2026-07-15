@@ -6,9 +6,10 @@
 بە /strategy یەکێکیان هەڵبژێرێت. دەتوانێت وەڵامی پرسیار بداتەوە، شیکاری
 چارت (وێنە، تاک یان چەند تایمفریم بەیەکەوە) بکات، فەرهەنگی کورتکراوەکان
 نیشان بدات، مێژووی سیگناڵەکان بپارێزێت، و ئاگادارکردنەوەی ڕۆژانە بنێرێت.
-(بەکارهێنانی Google Gen AI SDK ـی نوێ و فەرمی: google-genai)
+(بەکارهێنانی Claude API ـی Anthropic)
 """
 
+import base64
 import logging
 import os
 from datetime import time as dtime
@@ -25,8 +26,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from google import genai
-from google.genai import types
+from anthropic import Anthropic
 
 from strategies import STRATEGIES, DEFAULT_STRATEGY
 from access_control import allow_user, deny_user, is_allowed, list_allowed
@@ -35,9 +35,10 @@ import journal
 load_dotenv()
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OWNER_TELEGRAM_ID = int(os.getenv("OWNER_TELEGRAM_ID", "0"))
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-haiku-4-5-20251001")
+CLAUDE_MAX_TOKENS = int(os.getenv("CLAUDE_MAX_TOKENS", "1500"))
 TIMEZONE = os.getenv("TIMEZONE", "Asia/Baghdad")
 DAILY_REMINDER_HOUR = int(os.getenv("DAILY_REMINDER_HOUR", "9"))
 DAILY_REMINDER_MINUTE = int(os.getenv("DAILY_REMINDER_MINUTE", "0"))
@@ -48,13 +49,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-genai_client: "genai.Client" = None  # لە main() پڕدەکرێت
+claude_client: "Anthropic" = None  # لە main() پڕدەکرێت
 
 # ستراتیژی چالاکی هەر بەکارهێنەرێک {user_id: strategy_key}
 user_strategy: dict[int, str] = {}
 
 # بیرگەی گفتوگۆ بۆ هەر بەکارهێنەرێک، جیاکراوە بەپێی ستراتیژی
-# {(user_id, strategy_key): [types.Content, ...]}
+# {(user_id, strategy_key): [{"role": "user"/"assistant", "content": ...}, ...]}
 conversation_history: dict[tuple, list] = {}
 MAX_HISTORY_MESSAGES = 10
 
@@ -101,15 +102,15 @@ def _strategy_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def _generate(strategy_key: str, contents: list):
-    """ناردنی contents بۆ Gemini بەپێی system prompt ی ستراتیژیی دیاریکراو."""
-    return genai_client.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=STRATEGIES[strategy_key]["system_prompt"],
-        ),
+def _generate(strategy_key: str, messages: list) -> str:
+    """ناردنی messages بۆ Claude بەپێی system prompt ی ستراتیژیی دیاریکراو."""
+    response = claude_client.messages.create(
+        model=CLAUDE_MODEL,
+        max_tokens=CLAUDE_MAX_TOKENS,
+        system=STRATEGIES[strategy_key]["system_prompt"],
+        messages=messages,
     )
+    return "".join(block.text for block in response.content if block.type == "text")
 
 
 # ───────────────────────── فەرمانەکان ─────────────────────────
@@ -298,17 +299,16 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     history_key = (user_id, strategy_key)
     history = conversation_history.get(history_key, [])
-    history.append(types.Content(role="user", parts=[types.Part(text=user_text)]))
+    history.append({"role": "user", "content": user_text})
 
     try:
-        response = _generate(strategy_key, history)
-        reply_text = response.text
+        reply_text = _generate(strategy_key, history)
     except Exception as e:
-        logger.exception("Gemini API error")
-        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە Gemini: {e}")
+        logger.exception("Claude API error")
+        await update.message.reply_text(f"⚠️ هەڵەیەک ڕوویدا لە پەیوەندیکردن بە Claude: {e}")
         return
 
-    history.append(types.Content(role="model", parts=[types.Part(text=reply_text)]))
+    history.append({"role": "assistant", "content": reply_text})
     conversation_history[history_key] = history
     _trim_history(history_key)
 
@@ -317,17 +317,27 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 # ───────────────────────── وێنە (شیکاری چارت) ─────────────────────────
 
-async def _analyze_and_reply(chat_id: int, user_id: int, strategy_key: str, contents: list, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def _analyze_and_reply(chat_id: int, user_id: int, strategy_key: str, messages: list, context: ContextTypes.DEFAULT_TYPE) -> None:
     try:
-        response = _generate(strategy_key, contents)
-        reply_text = response.text
+        reply_text = _generate(strategy_key, messages)
     except Exception as e:
-        logger.exception("Gemini API vision error")
+        logger.exception("Claude API vision error")
         await context.bot.send_message(chat_id=chat_id, text=f"⚠️ هەڵەیەک ڕوویدا لە شیکاریکردنی وێنەکە: {e}")
         return
 
     _log_signal_from_reply(user_id, reply_text)
     await context.bot.send_message(chat_id=chat_id, text=reply_text)
+
+
+def _image_block(photo_bytes: bytes) -> dict:
+    return {
+        "type": "image",
+        "source": {
+            "type": "base64",
+            "media_type": "image/jpeg",
+            "data": base64.b64encode(photo_bytes).decode("utf-8"),
+        },
+    }
 
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -365,16 +375,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
 
     caption = update.message.caption or "تکایە ئەم چارتە شیکاری بکە."
-    contents = [
-        types.Content(
-            role="user",
-            parts=[
-                types.Part(text=caption),
-                types.Part.from_bytes(data=photo_bytes, mime_type="image/jpeg"),
-            ],
-        )
+    messages = [
+        {
+            "role": "user",
+            "content": [_image_block(photo_bytes), {"type": "text", "text": caption}],
+        }
     ]
-    await _analyze_and_reply(update.effective_chat.id, user_id, strategy_key, contents, context)
+    await _analyze_and_reply(update.effective_chat.id, user_id, strategy_key, messages, context)
 
 
 async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -387,11 +394,9 @@ async def _process_media_group(context: ContextTypes.DEFAULT_TYPE) -> None:
         data["caption"]
         or "ئەمانە چەند تایمفریمی هەمان چارتن. تکایە شیکاریی Multi-Timeframe بکە."
     )
-    parts = [types.Part(text=caption)] + [
-        types.Part.from_bytes(data=p, mime_type="image/jpeg") for p in data["photos"]
-    ]
-    contents = [types.Content(role="user", parts=parts)]
-    await _analyze_and_reply(data["chat_id"], data["user_id"], data["strategy_key"], contents, context)
+    content = [_image_block(p) for p in data["photos"]] + [{"type": "text", "text": caption}]
+    messages = [{"role": "user", "content": content}]
+    await _analyze_and_reply(data["chat_id"], data["user_id"], data["strategy_key"], messages, context)
 
 
 # ───────────────────────── ئاگادارکردنەوەی ڕۆژانە ─────────────────────────
@@ -413,16 +418,16 @@ async def _send_daily_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 def main() -> None:
-    global genai_client
+    global claude_client
 
     if not TELEGRAM_BOT_TOKEN:
         raise RuntimeError("TELEGRAM_BOT_TOKEN لە .env دیاری نەکراوە.")
-    if not GEMINI_API_KEY:
-        raise RuntimeError("GEMINI_API_KEY لە .env دیاری نەکراوە.")
+    if not ANTHROPIC_API_KEY:
+        raise RuntimeError("ANTHROPIC_API_KEY لە .env دیاری نەکراوە.")
     if not OWNER_TELEGRAM_ID:
         raise RuntimeError("OWNER_TELEGRAM_ID لە .env دیاری نەکراوە.")
 
-    genai_client = genai.Client(api_key=GEMINI_API_KEY)
+    claude_client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
 
