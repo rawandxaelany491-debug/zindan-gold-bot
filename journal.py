@@ -8,7 +8,7 @@
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 JOURNAL_FILE = "journal.json"
 MAX_ENTRIES = 2000  # سنووری سەرەوەی تۆمار بۆ ئەوەی فایلەکە زۆر گەورە نەبێت
@@ -68,6 +68,23 @@ def get_all_stats() -> dict:
     stats = {"BUY": 0, "SELL": 0, "WAIT": 0}
     for entry in entries:
         if entry.get("signal") in stats:
+            stats[entry["signal"]] += 1
+    return stats
+
+
+def get_user_stats_since(user_id: int, days: int = 7) -> dict:
+    """ژمارەی هەر سیگناڵێک بۆ بەکارهێنەرێک لە دوایین N ڕۆژدا (بۆ ڕاپۆرتی هەفتانە)."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    entries = _load_journal()
+    stats = {"BUY": 0, "SELL": 0, "WAIT": 0}
+    for entry in entries:
+        if entry.get("user_id") != user_id or entry.get("signal") not in stats:
+            continue
+        try:
+            ts = datetime.fromisoformat(entry["timestamp"])
+        except (ValueError, KeyError):
+            continue
+        if ts >= since:
             stats[entry["signal"]] += 1
     return stats
 
