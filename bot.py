@@ -32,6 +32,8 @@ from strategies import STRATEGIES, DEFAULT_STRATEGY
 from access_control import allow_user, deny_user, is_allowed, list_allowed
 import journal
 import rate_limit
+import streaks
+from about import ABOUT_TEXT
 
 load_dotenv()
 
@@ -44,6 +46,9 @@ TIMEZONE = os.getenv("TIMEZONE", "Asia/Baghdad")
 DAILY_REMINDER_HOUR = int(os.getenv("DAILY_REMINDER_HOUR", "9"))
 DAILY_REMINDER_MINUTE = int(os.getenv("DAILY_REMINDER_MINUTE", "0"))
 DAILY_PHOTO_LIMIT = int(os.getenv("DAILY_PHOTO_LIMIT", "10"))
+WEEKLY_REPORT_DAY = int(os.getenv("WEEKLY_REPORT_DAY", "6"))  # 0=دووشەممە ... 6=یەکشەممە
+WEEKLY_REPORT_HOUR = int(os.getenv("WEEKLY_REPORT_HOUR", "18"))
+WEEKLY_REPORT_MINUTE = int(os.getenv("WEEKLY_REPORT_MINUTE", "0"))
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -138,9 +143,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "تاکو شیکاری بۆ بکەم\n\n"
         "فەرمانەکان:\n"
         "/strategy — گۆڕینی ستراتیژی چالاک\n"
+        "/demo — بینینی نموونەیەکی شیکاریکردن\n"
         "/reset — پاککردنەوەی مێژووی گفتوگۆ\n"
         "/glossary — فەرهەنگی کورتکراوەکانی ستراتیژی چالاک\n"
         "/journal — مێژووی سیگناڵەکانی خۆت\n"
+        "/streak — بینینی بەردەوامی ڕۆژانەت\n"
+        "/about — زانیاری دەربارەی ستراتیژیەکە\n"
         "/id — بینینی ئایدی تلیگرامی خۆت",
         parse_mode="Markdown",
     )
@@ -236,6 +244,56 @@ async def journal_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     await update.message.reply_text(text)
 
 
+async def streak_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _check_access(user_id):
+        await _deny_message(update)
+        return
+    current_streak = streaks.get_streak(user_id)
+    if current_streak == 0:
+        await update.message.reply_text(
+            "🔥 هێشتا streak ـت دەستپێنەکردووە — ئەمڕۆ پرسیارێک بکە یان وێنەیەک "
+            "بنێرە بۆ دەستپێکردنی streak ی نوێ!"
+        )
+    else:
+        await update.message.reply_text(f"🔥 streak ـی ئێستات: {current_streak} ڕۆژی بەردەوام!")
+
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _check_access(user_id):
+        await _deny_message(update)
+        return
+    await update.message.reply_text(ABOUT_TEXT, parse_mode="Markdown")
+
+
+DEMO_TEXT = (
+    "🧪 *ئەمە نموونەیەکی شیکاریکردنە (DEMO) — نەک شیکاریی ڕاستەقینەی چارتی "
+    "ئێستا!*\n\n"
+    "بۆ تاقیکردنەوەی ڕاستەقینە، وێنەی چارتێکی خۆت بنێرە. ئەمە تەنها نموونەیەکە "
+    "بۆ ئەوەی بزانیت بۆتەکە چۆن وەڵام دەداتەوە:\n\n"
+    "━━━━━━━━━━━━━━━\n"
+    "🎯 ناوچەی Valid Support (V•S) لەسەر ٤٠٥٠.٠٠\n"
+    "📌 پلانی BUY:\n"
+    "🎯 Entry: 4050.00 - 4052.00\n"
+    "🛑 Stop-Loss: 4042.00\n"
+    "✅ Take-Profit 1: 4075.00\n"
+    "✅ Take-Profit 2: 4095.00\n"
+    "🔵 متمانە: بەهێز (V•S + PO2 بەیەکەوە)\n"
+    "📊 سیگناڵ: BUY\n"
+    "━━━━━━━━━━━━━━━\n\n"
+    "ئێستا نۆرەی تۆیە — وێنەی چارتی خۆت بنێرە! 📈"
+)
+
+
+async def demo_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_id = update.effective_user.id
+    if not _check_access(user_id):
+        await _deny_message(update)
+        return
+    await update.message.reply_text(DEMO_TEXT, parse_mode="Markdown")
+
+
 async def allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if user_id != OWNER_TELEGRAM_ID:
@@ -249,10 +307,29 @@ async def allow_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     except ValueError:
         await update.message.reply_text("تکایە ئایدییەکی دروست بنێرە (ژمارە).")
         return
-    if allow_user(target_id):
-        await update.message.reply_text(f"✅ ئایدی `{target_id}` ڕێگەی پێدرا.", parse_mode="Markdown")
-    else:
+
+    if not allow_user(target_id):
         await update.message.reply_text(f"ئایدی `{target_id}` پێشتر ڕێگەی پێدراوە.", parse_mode="Markdown")
+        return
+
+    await update.message.reply_text(f"✅ ئایدی `{target_id}` ڕێگەی پێدرا.", parse_mode="Markdown")
+
+    welcome_text = (
+        "🎉 بەخێربێیت! خاوەنی بۆت ڕێگەی پێدایت بۆ بەکارهێنانی بۆتی ستراتیژیەکانی "
+        "مامەڵەکردن.\n\n"
+        "🦁 دەتوانیت:\n"
+        "• هەر پرسیارێکت هەبێت لەسەر ستراتیژی SNRZ/ICT/SMC بمپرسە\n"
+        "• وێنەی چارتێک بنێرە تاکو شیکاری بۆ بکەم\n\n"
+        "بۆ دەستپێکردن، /start بنووسە. سەرکەوتوو بیت! 🚀"
+    )
+    try:
+        await context.bot.send_message(chat_id=target_id, text=welcome_text)
+    except Exception:
+        logger.warning("Could not DM welcome message to %s (they may not have started the bot yet)", target_id)
+        await update.message.reply_text(
+            "⚠️ تێبینی: نەمتوانی پەیامی بەخێرهاتن ڕاستەوخۆ بۆ ئەو کەسە بنێرم — "
+            "لەوانەیە هێشتا بۆتەکەی دەستپێنەکردبێت. کاتێک خۆی /start بنووسێت، بەخێرهاتن دەبینێت."
+        )
 
 
 async def deny_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -295,6 +372,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await _deny_message(update)
         return
 
+    streaks.record_activity(user_id)
     strategy_key = _get_user_strategy(user_id)
     user_text = update.message.text
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -367,6 +445,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await _deny_message(update)
         return
 
+    streaks.record_activity(user_id)
     strategy_key = _get_user_strategy(user_id)
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
@@ -457,6 +536,31 @@ async def _send_daily_reminder(context: ContextTypes.DEFAULT_TYPE) -> None:
             logger.warning("Could not send daily reminder to %s", uid)
 
 
+async def _send_weekly_report(context: ContextTypes.DEFAULT_TYPE) -> None:
+    recipients = list_allowed() + [OWNER_TELEGRAM_ID]
+    for uid in recipients:
+        stats = journal.get_user_stats_since(uid, days=7)
+        total = sum(stats.values())
+        streak = streaks.get_streak(uid)
+        text = (
+            "🗓️ *ڕاپۆرتی هەفتانەت*\n\n"
+            f"🟢 BUY: {stats['BUY']}\n"
+            f"🔴 SELL: {stats['SELL']}\n"
+            f"🟡 WAIT: {stats['WAIT']}\n"
+            f"━━━━━━━━━\n"
+            f"کۆی گشتی ئەم هەفتەیە: {total}\n"
+            f"🔥 streak: {streak} ڕۆژ\n\n"
+        )
+        if total == 0:
+            text += "ئەم هەفتەیە هیچ چارتێکت شیکاری نەکراوە — بەردەوام بە! 💪"
+        else:
+            text += "بەردەوام بە، پێشکەوتنی باشە! 🚀"
+        try:
+            await context.bot.send_message(chat_id=uid, text=text, parse_mode="Markdown")
+        except Exception:
+            logger.warning("Could not send weekly report to %s", uid)
+
+
 def main() -> None:
     global claude_client
 
@@ -478,6 +582,9 @@ def main() -> None:
     app.add_handler(CommandHandler("reset", reset_command))
     app.add_handler(CommandHandler("glossary", glossary_command))
     app.add_handler(CommandHandler("journal", journal_command))
+    app.add_handler(CommandHandler("streak", streak_command))
+    app.add_handler(CommandHandler("about", about_command))
+    app.add_handler(CommandHandler("demo", demo_command))
     app.add_handler(CommandHandler("allow", allow_command))
     app.add_handler(CommandHandler("deny", deny_command))
     app.add_handler(CommandHandler("users", users_command))
@@ -489,6 +596,12 @@ def main() -> None:
             _send_daily_reminder,
             time=dtime(hour=DAILY_REMINDER_HOUR, minute=DAILY_REMINDER_MINUTE, tzinfo=ZoneInfo(TIMEZONE)),
             name="daily_reminder",
+        )
+        app.job_queue.run_daily(
+            _send_weekly_report,
+            time=dtime(hour=WEEKLY_REPORT_HOUR, minute=WEEKLY_REPORT_MINUTE, tzinfo=ZoneInfo(TIMEZONE)),
+            days=(WEEKLY_REPORT_DAY,),
+            name="weekly_report",
         )
     else:
         logger.warning(
