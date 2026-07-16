@@ -4,4 +4,3 @@ __pycache__/
 *.pyc
 journal.json
 photo_limits.json
-streaks.json
